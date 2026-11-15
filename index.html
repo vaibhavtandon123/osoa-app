@@ -22,7 +22,7 @@
 html,body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Arial,sans-serif}
 button,input,select,textarea{font:inherit;color:inherit}
 a{color:var(--acc)}
-.wrap{max-width:860px;margin:0 auto;padding:0 16px}
+.wrap{max-width:1200px;margin:0 auto;padding:0 16px}
 .top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line);padding-top:var(--safe-t)}
 .topin{display:flex;align-items:center;gap:10px;min-height:58px}
 .logo{width:38px;height:38px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:11px;letter-spacing:.3px;flex:none;overflow:hidden}
@@ -68,10 +68,10 @@ h3{font-size:15.5px;margin:0 0 4px}
 .ev .cv .sh{position:absolute;inset:0;background:linear-gradient(180deg,transparent 30%,rgba(0,0,0,.55))}
 .ev .cv b{position:relative;font-size:13px;letter-spacing:.5px}
 .ev .bd{padding:12px 14px 14px}
-.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
 .stat{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
 .stat small{color:var(--sub);font-size:12.5px;display:block}
-.stat b{font-size:24px}
+.stat b{font-size:22px;white-space:nowrap}
 label{display:block;font-size:13px;font-weight:600;color:var(--sub);margin:12px 0 5px}
 input,select,textarea{width:100%;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:11px 12px;outline:none;font-size:16px}
 input:focus,select:focus,textarea:focus{border-color:var(--acc)}
@@ -133,6 +133,41 @@ textarea{min-height:84px;resize:vertical}
 .viewer{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:80;display:flex;align-items:center;justify-content:center;padding:20px}
 .viewer img{max-width:100%;max-height:100%;border-radius:8px}
 .hide{display:none!important}
+.bar{height:10px;border-radius:9px;background:var(--card2);overflow:hidden;margin:10px 0 4px}
+.bar i{display:block;height:100%;background:var(--acc);border-radius:9px}
+.bar i.over{background:var(--bad)}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{text-align:left;color:var(--sub);font-weight:600;font-size:12.5px;padding:10px 12px;border-bottom:1px solid var(--line)}
+.tbl td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:0}
+.tbl tr.click{cursor:pointer}.tbl tr.click:hover td{background:var(--card2)}
+.tbl .num,.num{text-align:right;font-variant-numeric:tabular-nums}
+.red{color:var(--bad)}.green{color:var(--ok)}
+.team{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.team .hd{display:flex;align-items:center;gap:8px}
+.team .hd b{flex:1;font-size:15.5px}
+.head{display:flex;align-items:center;gap:10px;background:color-mix(in srgb,var(--acc) 12%,transparent);border-radius:12px;padding:8px 10px}
+.head .grow{flex:1;min-width:0}.head .grow b{display:block;font-size:14px}
+.mem{display:flex;align-items:center;gap:8px;padding:5px 0}
+.mem .av{width:30px;height:30px;font-size:11px}.mem .grow{flex:1;min-width:0;font-size:14px}
+.ib.sm{width:32px;height:32px}.ib.sm svg{width:16px;height:16px}
+.org{display:flex;flex-direction:column;align-items:center;margin-bottom:6px}
+.org .line{width:2px;height:18px;background:var(--line)}
+.sug{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.only-desk{display:none}
+@media(min-width:900px){
+  body.side .tabs{top:0;bottom:0;left:0;right:auto;width:230px;border-top:0;border-right:1px solid var(--line);padding:calc(76px + var(--safe-t)) 10px 20px;background:var(--bg)}
+  body.side .tabs .in{flex-direction:column;max-width:none;gap:2px}
+  body.side .tab{flex:none;flex-direction:row;gap:12px;font-size:14.5px;padding:11px 14px;border-radius:12px;justify-content:flex-start}
+  body.side .tab.on{background:color-mix(in srgb,var(--acc) 16%,transparent)}
+  body.side .tab svg{width:20px;height:20px}
+  body.side main,body.side .top .topin{padding-left:246px}
+  body.side .top .wrap{max-width:none}
+  body.side main.wrap{max-width:none;padding-right:28px}
+  main{padding-bottom:40px}
+  .only-desk{display:block}.only-phone{display:none}
+  .toast{bottom:28px}
+}
 </style>
 </head>
 <body>
@@ -140,6 +175,7 @@ textarea{min-height:84px;resize:vertical}
 <script>
 /* ============ OSOA Desk — frontend ============ */
 var VERSIONS=[
+  {v:'1.1.0',d:'15 Nov 2026',t:'Teams (departments) with heads chosen by username, heads manage their own members, Team Map for volunteers and artists, team tasks, event Budget with heads and expenses (admin and Finance head), desktop layout with left sidebar and artist table.'},
   {v:'1.0.0',d:'15 Nov 2026',t:'First version: event picker, guest page, login/sign up, artist registration with approval (status, WhatsApp, email), admin dashboard, team roles, volunteer check-in, tasks, announcements, schedule, programs (desk name, colour, logo), light/dark theme.'}
 ];
 var S={token:localStorage.getItem('osoa-token')||'',me:null,programs:[],events:[],cats:[],filter:'all',ev:null,data:null,pub:null,tab:'',sub:{}};
@@ -156,6 +192,7 @@ function avatar(u,cls){return '<div class="av '+(cls||'')+'">'+(u&&u.photoId?'<i
 function fmtDate(d){if(!d)return '';var x=new Date(d+'T00:00:00');if(isNaN(x))return d;return x.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});}
 function fmtRange(a,b){return b&&b!==a?fmtDate(a)+' – '+fmtDate(b):fmtDate(a);}
 function ago(t){if(!t)return '';var s=(Date.now()-new Date(t))/1000;if(s<60)return 'just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return new Date(t).toLocaleDateString('en-IN',{day:'numeric',month:'short'});}
+function money(n){n=Math.round(Number(n)||0);return (n<0?'-':'')+'₹'+Math.abs(n).toLocaleString('en-IN');}
 function prog(id){return S.programs.filter(function(p){return p.programId===id;})[0]||{deskName:'OSOA Desk',short:'OSOA',color:'#D4A017'};}
 function waLink(mobile,msg){var m=String(mobile||'').replace(/\D/g,'').slice(-10);return 'https://wa.me/91'+m+'?text='+encodeURIComponent(msg||'');}
 function statusBadge(s){var m={approved:'ok Approved',pending:'warn Pending',rejected:'bad Rejected',active:'ok Active',Upcoming:'acc Upcoming',Live:'ok Live',Completed:' Completed'}[s]||(' '+(s||''));var i=m.indexOf(' ');return '<span class="badge '+m.slice(0,i)+'">'+esc(m.slice(i+1))+'</span>';}
@@ -176,7 +213,9 @@ grid:'<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width=
 chart:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',back:'<path d="M15 5l-7 7 7 7"/>',doc:'<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/>',
 gear:'<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/>',
 eye:'<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',ig:'<rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="1"/>',
-switch:'<path d="M7 7h13l-3-3M17 17H4l3 3"/>',info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>'
+switch:'<path d="M7 7h13l-3-3M17 17H4l3 3"/>',info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>',
+wallet:'<rect x="3" y="6" width="18" height="14" rx="2.5"/><path d="M3 10h18M16 15h2"/><path d="M6 6l9-3 1 3"/>',
+sitemap:'<rect x="9" y="3" width="6" height="5" rx="1"/><rect x="3" y="16" width="6" height="5" rx="1"/><rect x="15" y="16" width="6" height="5" rx="1"/><path d="M12 8v4M6 16v-4h12v4"/>'
 };
 function ic(n){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'+(IC[n]||'')+'</svg>';}
 
@@ -205,7 +244,7 @@ function readImg(file,max,type){return new Promise(function(res,rej){var r=new F
 function go(h){if(location.hash===h)route();else location.hash=h;}
 window.addEventListener('hashchange',route);
 function parts(){return location.hash.replace(/^#\/?/,'').split('/');}
-function route(){closeSheet();var p=parts();window.scrollTo(0,0);
+function route(){closeSheet();document.body.classList.remove('side');var p=parts();window.scrollTo(0,0);
   if(p[0]==='e'&&p[1]){openEvent(p[1]);}
   else if(p[0]==='login'){S.ev=p[1]||null;renderAuth(p[2]||'login');}
   else if(p[0]==='programs'){renderPrograms();}
@@ -328,23 +367,24 @@ function reloadEvent(){return A('api_eventData',{eventId:S.ev}).then(function(d)
 function useData(d){S.data=d;drawEvent();}
 
 /* gate: not logged in → guest or login */
-function drawGate(){refreshShell();var e=S.pub.event;
+function drawGate(){refreshShell();document.body.classList.remove('side');var e=S.pub.event;
   $('main').innerHTML=heroHtml(e)+'<div class="card" style="margin-top:14px;text-align:center"><h3>How do you want to continue?</h3><p class="sub" style="margin:4px 0 12px">Artists, volunteers and admins please login.</p>'+
   '<div class="btns" style="justify-content:center"><button class="btn p" onclick="go(\'#/login/'+e.eventId+'\')">'+ic('user')+'Login</button><button class="btn" onclick="S.tab=\'guest\';drawGuest()">'+ic('eye')+'View as guest</button></div>'+
   '<p class="mut" style="margin:12px 0 0">Want to register as an artist? <a href="#/login/'+e.eventId+'/signup">Create an account</a></p></div>';
   $('tabs').innerHTML='';}
 
 function tabsFor(role){
-  if(role==='admin')return [['dash','chart','Dashboard'],['artists','palette','Artists'],['team','users','Team'],['tasks','list','Tasks'],['more','more','More']];
-  if(role==='volunteer')return [['vhome','home','Home'],['checkin','check','Check-in'],['artists','palette','Artists'],['tasks','list','Tasks'],['public','eye','Event']];
-  if(role==='artist')return [['ahome','home','My status'],['updates','bell','Updates'],['schedule','cal','Schedule'],['public','eye','Event']];
+  if(role==='admin')return [['dash','chart','Dashboard'],['artists','palette','Artists'],['teams','sitemap','Teams'],['tasks','list','Tasks'],['budget','wallet','Budget'],['more','more','More']];
+  if(role==='volunteer'){var t=[['vhome','home','Home'],['checkin','check','Check-in'],['artists','palette','Artists'],['tasks','list','Tasks'],['teams','sitemap','Teams']];if(S.data&&S.data.budget)t.push(['budget','wallet','Budget']);return t;}
+  if(role==='artist')return [['ahome','home','My status'],['updates','bell','Updates'],['teams','sitemap','Teams'],['schedule','cal','Schedule'],['public','eye','Event']];
   return [];
 }
 function drawEvent(){refreshShell();var d=S.data,role=d.role,t=tabsFor(role);
-  if(!role){$('tabs').innerHTML='';return drawGuest();}
+  if(!role){$('tabs').innerHTML='';document.body.classList.remove('side');return drawGuest();}
+  document.body.classList.add('side');
   if(!S.tab||!t.some(function(x){return x[0]===S.tab;}))S.tab=t[0][0];
   $('tabs').innerHTML='<div class="tabs"><div class="in">'+t.map(function(x){return '<button class="tab '+(S.tab===x[0]?'on':'')+'" onclick="S.tab=\''+x[0]+'\';drawEvent();window.scrollTo(0,0)">'+ic(x[1])+x[2]+'</button>';}).join('')+'</div></div>';
-  var f={dash:drawDash,artists:drawArtists,team:drawTeam,tasks:drawTasks,more:drawMore,vhome:drawVHome,checkin:drawCheckin,ahome:drawAHome,updates:drawUpdates,schedule:drawScheduleTab,public:drawGuest}[S.tab];
+  var f={dash:drawDash,artists:drawArtists,teams:drawTeams,budget:drawBudget,tasks:drawTasks,more:drawMore,vhome:drawVHome,checkin:drawCheckin,ahome:drawAHome,updates:drawUpdates,schedule:drawScheduleTab,public:drawGuest}[S.tab];
   f();
 }
 
@@ -416,6 +456,7 @@ function drawVHome(){var d=S.data,h='<h1>Hi '+esc(S.me.fullName.split(' ')[0])+'
   h+='<div class="stats"><div class="stat"><small>Checked in</small><b>'+ci+' / '+arts.length+'</b></div><div class="stat"><small>My open tasks</small><b>'+open+'</b></div></div>';
   h+='<h2>Updates</h2>'+((d.announcements||[]).length?d.announcements.slice(0,5).map(function(a){return annHtml(a,false);}).join(''):'<div class="mut">No updates yet.</div>');
   if(d.schedule.length)h+='<h2>Schedule</h2>'+scheduleHtml(d.schedule,false);
+  h+='<button class="btn" style="margin-top:16px" onclick="S.tab=\'public\';drawEvent()">'+ic('eye')+'View event page</button>';
   $('main').innerHTML=h;}
 function drawCheckin(){var arts=(S.data.artists||[]).filter(function(a){return a.status==='approved';}),ci=arts.filter(function(a){return a.checkedIn;}).length;
   $('main').innerHTML='<h1>Check-in</h1><p class="sub" style="margin:0 0 10px">'+ci+' of '+arts.length+' artists checked in</p><input id="q" placeholder="Search name, state or mobile" oninput="drawCheckList()"><div class="card" style="padding:2px 14px;margin-top:10px" id="clist"></div>';drawCheckList();}
@@ -426,6 +467,7 @@ function toggleCheck(id,b){var a=S.data.artists.filter(function(x){return x.role
   .catch(function(e){a.checkedIn=!v;b.classList.toggle('on',!v);toast(errMsg(e));});}
 
 /* ---- ARTISTS list (admin + volunteer) ---- */
+window.addEventListener('resize',function(){clearTimeout(window._rz);window._rz=setTimeout(function(){if(S.tab==='artists'&&$('alist'))drawArtistList();},250);});
 function drawArtists(){var admin=S.data.role==='admin',f=S.sub.af||(admin?'pending':'approved'),all=S.data.artists||[];
   var cnt=function(s){return all.filter(function(a){return s==='all'||a.status===s;}).length;};
   var h='<h1>Artists</h1>';
@@ -434,6 +476,8 @@ function drawArtists(){var admin=S.data.role==='admin',f=S.sub.af||(admin?'pendi
   $('main').innerHTML=h;drawArtistList();}
 function drawArtistList(){var admin=S.data.role==='admin',f=S.sub.af||(admin?'pending':'approved'),q=($('aq').value||'').toLowerCase();S.sub.aq=$('aq').value;
   var l=(S.data.artists||[]).filter(function(a){return (f==='all'||a.status===f)&&(!q||[a.name,a.state,a.city,a.category,a.username].join(' ').toLowerCase().indexOf(q)>=0);});
+  if(window.innerWidth>=900&&l.length){$('alist').innerHTML='<div class="card" style="padding:0;overflow:auto"><table class="tbl"><tr><th></th><th>Name</th><th>State / City</th><th>Category</th><th>Artwork</th><th>Status</th><th>Check-in</th></tr>'+l.map(function(a){
+    return '<tr class="click" onclick="artistDetail(\''+a.roleId+'\')"><td style="width:50px">'+avatar(a)+'</td><td><b>'+esc(a.name)+'</b><div class="mut">@'+esc(a.username)+'</div></td><td>'+esc([a.state,a.city].filter(Boolean).join(' / '))+'</td><td>'+esc(a.category||'')+'</td><td>'+(a.artworks[0]?'<img loading="lazy" src="'+img(a.artworks[0])+'" style="width:44px;height:44px;border-radius:8px;object-fit:cover">':'')+'</td><td>'+statusBadge(a.status)+'</td><td>'+(a.checkedIn?'<span class="badge ok">In</span>':'<span class="mut">—</span>')+'</td></tr>';}).join('')+'</table></div>';return;}
   $('alist').innerHTML=l.length?l.map(function(a){return '<div class="card" onclick="artistDetail(\''+a.roleId+'\')" style="cursor:pointer"><div class="row">'+avatar(a)+'<div class="grow"><b>'+esc(a.name)+'</b><div class="mut">'+esc([a.city,a.state].filter(Boolean).join(', '))+(a.category?' · '+esc(a.category):'')+'</div></div>'+statusBadge(a.status)+(a.checkedIn?' <span class="badge ok">In</span>':'')+'</div>'+
     (a.artworks.length?'<div class="thumbs">'+a.artworks.map(function(id){return '<img loading="lazy" src="'+img(id)+'">';}).join('')+'</div>':'')+'</div>';}).join(''):'<div class="empty">'+ic('palette')+'<p>No artists here.</p></div>';}
 function artistDetail(id){var a=S.data.artists.filter(function(x){return x.roleId===id;})[0],admin=S.data.role==='admin',e=S.data.event;
@@ -458,7 +502,7 @@ function removeRole(id){if(!confirmBox('Remove this person from the event?'))ret
 function drawDash(){var d=S.data,a=d.artists||[],ap=a.filter(function(x){return x.status==='approved';});
   var st={};ap.forEach(function(x){if(x.state)st[x.state]=(st[x.state]||0)+1;});
   var h='<h1>Dashboard</h1><p class="sub" style="margin:0 0 12px">'+esc(d.event.name)+' · '+statusBadge(d.event.status)+'</p><div class="stats">'+
-  [['Approved artists',ap.length],['Pending review',a.filter(function(x){return x.status==='pending';}).length],['Checked in',ap.filter(function(x){return x.checkedIn;}).length+' / '+ap.length],['States',Object.keys(st).length],['Volunteers',(d.team||[]).filter(function(x){return x.role==='volunteer';}).length],['Open tasks',(d.tasks||[]).filter(function(x){return x.status!=='done';}).length]]
+  [['Approved artists',ap.length],['Pending review',a.filter(function(x){return x.status==='pending';}).length],['Checked in',ap.filter(function(x){return x.checkedIn;}).length+' / '+ap.length],['States',Object.keys(st).length],['Volunteers',(d.team||[]).filter(function(x){return x.role==='volunteer';}).length],['Open tasks',(d.tasks||[]).filter(function(x){return x.status!=='done';}).length],['Teams',(d.teams||[]).length]].concat(d.budget&&d.budget.total?[['Budget used',money(d.budget.spent)+' / '+money(d.budget.total)]]:[])
   .map(function(s){return '<div class="stat"><small>'+s[0]+'</small><b>'+s[1]+'</b></div>';}).join('')+'</div>';
   var pend=a.filter(function(x){return x.status==='pending';}).length;
   if(pend)h+='<div class="card" style="margin-top:12px;cursor:pointer" onclick="S.tab=\'artists\';S.sub.af=\'pending\';drawEvent()"><div class="row"><div class="grow"><b>'+pend+' artist'+(pend>1?'s':'')+' waiting for approval</b><div class="mut">Tap to review</div></div>'+ic('back').replace('<svg','<svg style="width:18px;transform:rotate(180deg)"')+'</div></div>';
@@ -467,25 +511,90 @@ function drawDash(){var d=S.data,a=d.artists||[],ap=a.filter(function(x){return 
   h+='<h2>Recent activity</h2>'+((d.activity||[]).length?'<div class="card" style="padding:2px 14px">'+d.activity.slice(0,15).map(function(x){return '<div class="li"><div class="grow"><b style="font-weight:600">'+esc(x.action)+'</b><span class="mut">'+esc(x.detail)+' · '+esc(x.actorName)+'</span></div><span class="mut">'+ago(x.at)+'</span></div>';}).join('')+'</div>':'<div class="mut">No activity yet.</div>');
   $('main').innerHTML=h;}
 
-/* ---- ADMIN: team ---- */
-function drawTeam(){var t=S.data.team||[];
-  var grp=function(r,title){var l=t.filter(function(x){return x.role===r;});return '<h2>'+title+' ('+l.length+')</h2>'+(l.length?'<div class="card" style="padding:2px 14px">'+l.map(function(x){return '<div class="li">'+avatar(x)+'<div class="grow"><b>'+esc(x.name)+'</b><span class="mut">@'+esc(x.username)+(x.mobile?' · '+esc(x.mobile):'')+'</span></div>'+(x.mobile?'<a class="ib" target="_blank" rel="noopener" href="'+waLink(x.mobile,'')+'" aria-label="WhatsApp">'+ic('wa')+'</a>':'')+'<button class="ib" onclick="removeRole(\''+x.roleId+'\')" aria-label="Remove">'+ic('trash')+'</button></div>';}).join('')+'</div>':'<div class="mut">None yet.</div>');};
-  $('main').innerHTML='<div class="row"><h1 class="grow">Team</h1><button class="btn p sm" onclick="addPerson()">'+ic('plus')+'Add person</button></div><p class="sub" style="margin:0">People sign up themselves, then you add them here with a role.</p>'+grp('admin','Event admins')+grp('volunteer','Volunteers');}
+/* ---- TEAMS: map + departments ---- */
+function contactBtns(u){return u&&u.mobile?'<a class="ib sm" href="tel:'+esc(u.mobile)+'" aria-label="Call" onclick="event.stopPropagation()">'+ic('phone')+'</a><a class="ib sm" target="_blank" rel="noopener" href="'+waLink(u.mobile,'')+'" aria-label="WhatsApp" onclick="event.stopPropagation()">'+ic('wa')+'</a>':'';}
+function drawTeams(){var d=S.data,admin=d.role==='admin',teams=d.teams||[],h='';
+  h+='<div class="row"><h1 class="grow">Teams</h1>'+(admin?'<button class="btn p sm" onclick="teamForm()">'+ic('plus')+'Add team</button>':'')+'</div><p class="sub" style="margin:0 0 14px">Who handles what. Contact a team head for help.</p>';
+  h+='<div class="org"><div class="card" style="margin:0;min-width:260px;max-width:420px;width:100%"><div class="mut" style="font-weight:700;margin-bottom:6px">Organisers</div>'+
+    ((d.admins||[]).length?d.admins.map(function(a){return '<div class="mem">'+avatar(a)+'<div class="grow"><b>'+esc(a.fullName)+'</b> <span class="mut">@'+esc(a.username)+'</span></div>'+contactBtns(a)+'</div>';}).join(''):'<div class="mut">Event admins appear here.</div>')+'</div>'+(teams.length?'<div class="line"></div>':'')+'</div>';
+  if(!teams.length)h+='<div class="empty">'+ic('sitemap')+'<p>No teams yet.'+(admin?' Tap “Add team” to create departments like Finance, Creative or Hospitality.':'')+'</p></div>';
+  else h+='<div class="grid">'+teams.map(teamCard).join('')+'</div>';
+  if(admin){var t=d.team||[];
+    var grp=function(r,title){var l=t.filter(function(x){return x.role===r;});return '<h2>'+title+' ('+l.length+')</h2>'+(l.length?'<div class="card" style="padding:2px 14px">'+l.map(function(x){return '<div class="li">'+avatar(x)+'<div class="grow"><b>'+esc(x.name)+'</b><span class="mut">@'+esc(x.username)+(x.mobile?' · '+esc(x.mobile):'')+'</span></div>'+(x.mobile?'<a class="ib" target="_blank" rel="noopener" href="'+waLink(x.mobile,'')+'" aria-label="WhatsApp">'+ic('wa')+'</a>':'')+'<button class="ib" onclick="removeRole(\''+x.roleId+'\')" aria-label="Remove">'+ic('trash')+'</button></div>';}).join('')+'</div>':'<div class="mut">None yet.</div>');};
+    h+='<div class="row" style="margin-top:28px"><h2 class="grow" style="margin:0">People in this event</h2><button class="btn sm" onclick="addPerson()">'+ic('plus')+'Add person</button></div>'+grp('admin','Event admins')+grp('volunteer','Volunteers');}
+  $('main').innerHTML=h;}
+function teamCard(t){var admin=S.data.role==='admin';
+  return '<div class="team"><div class="hd"><b>'+esc(t.name)+'</b><span class="badge">'+(t.members.length+(t.head?1:0))+'</span>'+(admin?'<button class="ib sm" onclick="teamForm(\''+t.teamId+'\')" aria-label="Edit team">'+ic('edit')+'</button>':'')+'</div>'+
+  (t.head?'<div class="head">'+avatar(t.head)+'<div class="grow"><b>'+esc(t.head.fullName)+'</b><span class="mut">Head · @'+esc(t.head.username)+'</span></div>'+contactBtns(t.head)+'</div>':'<div class="mut">No head yet'+(admin?' — tap edit to add one.':'')+'</div>')+
+  (t.members.length?t.members.map(function(m){return '<div class="mem">'+avatar(m)+'<div class="grow">'+esc(m.fullName)+' <span class="mut">@'+esc(m.username)+'</span></div>'+(t.canManage?contactBtns(m)+'<button class="ib sm" onclick="removeMember(\''+m.memberId+'\')" aria-label="Remove">'+ic('x')+'</button>':'')+'</div>';}).join(''):'<div class="mut">No members yet.</div>')+
+  (t.canManage?'<button class="btn sm" onclick="memberForm(\''+t.teamId+'\')">'+ic('plus')+'Add member</button>':'')+'</div>';}
+function teamForm(id){var t=id?S.data.teams.filter(function(x){return x.teamId===id;})[0]:{},have=(S.data.teams||[]).map(function(x){return x.name.toLowerCase();});
+  var sug=(S.data.teamSuggestions||[]).filter(function(n){return have.indexOf(n.toLowerCase())<0;});
+  sheet(id?'Edit team':'Add team',(id?'':'<label style="margin-top:0">Pick a team</label><div class="sug">'+sug.map(function(n){return '<div class="chip" onclick="$(\'tm_name\').value=this.textContent">'+esc(n)+'</div>';}).join('')+'</div>')+
+  '<label>Team name</label><input id="tm_name" value="'+esc(t.name)+'" placeholder="Or type your own team name">'+
+  '<label>Head of department (username)</label><input id="tm_head" autocapitalize="none" placeholder="ramesh.kumar" value="'+esc(t.head?t.head.username:'')+'"><p class="mut" style="margin:6px 0 0">The head can add and remove members of this team. They must have an account.</p>'+
+  '<div class="err" id="err"></div><button class="btn p full" style="margin-top:14px" onclick="saveTeam(this,\''+(id||'')+'\')">Save team</button>'+(id?'<button class="btn bad full" style="margin-top:8px" onclick="deleteTeam(\''+id+'\')">Delete team</button>':''));}
+function saveTeam(b,id){busy(b,1);$('err').textContent='';A('api_saveTeam',{eventId:S.ev,team:{teamId:id||undefined,name:$('tm_name').value,headUsername:$('tm_head').value}}).then(function(d){closeSheet();toast('Team saved');useData(d);}).catch(function(e){busy(b,0);$('err').textContent=errMsg(e);});}
+function deleteTeam(id){if(!confirmBox('Delete this team? Members stay in the event as volunteers.'))return;A('api_deleteTeam',{teamId:id}).then(function(d){closeSheet();toast('Team deleted');useData(d);}).catch(function(e){toast(errMsg(e));});}
+function memberForm(id){var t=S.data.teams.filter(function(x){return x.teamId===id;})[0];
+  sheet('Add to '+t.name,'<label style="margin-top:0">Username (or mobile)</label><input id="mb_user" autocapitalize="none" placeholder="sita.verma" onkeydown="if(event.key===\'Enter\')addMember($(\'mbbtn\'),\''+id+'\')"><p class="mut" style="margin:6px 0 0">They become a volunteer of this event and can see the Team Map.</p><div class="err" id="err"></div><button class="btn p full" id="mbbtn" style="margin-top:14px" onclick="addMember(this,\''+id+'\')">Add member</button>');}
+function addMember(b,id){busy(b,1);$('err').textContent='';A('api_addTeamMember',{teamId:id,username:$('mb_user').value}).then(function(d){closeSheet();toast('Member added');useData(d);}).catch(function(e){busy(b,0);$('err').textContent=errMsg(e);});}
+function removeMember(mid){if(!confirmBox('Remove this member from the team?'))return;A('api_removeTeamMember',{memberId:mid}).then(function(d){toast('Removed');useData(d);}).catch(function(e){toast(errMsg(e));});}
+
+/* ---- BUDGET ---- */
+function drawBudget(){var b=S.data.budget;if(!b){$('main').innerHTML='<div class="empty">You do not have access to the budget.</div>';return;}
+  var left=b.total-b.spent,pct=b.total?Math.min(100,Math.round(b.spent/b.total*100)):0,h='';
+  h+='<div class="row"><h1 class="grow">Budget</h1>'+(S.data.canSetBudget?'<button class="btn sm" onclick="budgetForm()">'+ic('edit')+'Set budget</button>':'')+'<button class="btn p sm" onclick="expenseForm()">'+ic('plus')+'Add expense</button></div>';
+  h+='<div class="stats" style="margin-top:10px"><div class="stat"><small>Total budget</small><b>'+money(b.total)+'</b></div><div class="stat"><small>Spent</small><b>'+money(b.spent)+'</b></div><div class="stat"><small>Remaining</small><b class="'+(left<0?'red':'green')+'">'+money(left)+'</b></div></div>';
+  if(b.total)h+='<div class="bar"><i class="'+(b.spent>b.total?'over':'')+'" style="width:'+pct+'%"></i></div><div class="mut">'+pct+'% used'+(b.spent>b.total?' · over budget by '+money(b.spent-b.total):'')+'</div>';
+  else h+='<div class="card" style="margin-top:12px">'+(S.data.canSetBudget?'No budget set yet. Tap “Set budget” to add the total and split it by heads.':'The admin has not set a budget yet.')+'</div>';
+  if(b.heads.length)h+='<h2>By head</h2><div class="card" style="padding:0;overflow:auto"><table class="tbl"><tr><th>Head</th><th class="num">Budget</th><th class="num">Spent</th><th class="num">Left</th><th style="width:30%"></th></tr>'+b.heads.map(function(x){var l=x.alloc-x.spent,p=x.alloc?Math.min(100,Math.round(x.spent/x.alloc*100)):(x.spent?100:0);
+    return '<tr><td><b>'+esc(x.name)+'</b></td><td class="num">'+money(x.alloc)+'</td><td class="num">'+money(x.spent)+'</td><td class="num '+(l<0?'red':'')+'">'+money(l)+'</td><td><div class="bar" style="margin:0"><i class="'+(x.spent>x.alloc?'over':'')+'" style="width:'+p+'%"></i></div></td></tr>';}).join('')+'</table></div>';
+  h+='<h2>Expenses ('+b.expenses.length+')</h2>'+(b.expenses.length?'<div class="card" style="padding:0;overflow:auto"><table class="tbl"><tr><th>Date</th><th>Head</th><th>Note</th><th>Paid by</th><th class="num">Amount</th><th>Bill</th></tr>'+b.expenses.map(function(x){
+    return '<tr class="click" onclick="expenseForm(\''+x.expId+'\')"><td>'+esc(fmtDate(x.spentOn)||ago(x.addedAt))+'</td><td>'+esc(x.head)+'</td><td>'+esc(x.note)+'</td><td>'+esc(x.paidBy||x.addedName)+'</td><td class="num"><b>'+money(x.amount)+'</b></td><td>'+(x.billId?'<span class="badge acc">Bill</span>':'')+'</td></tr>';}).join('')+'</table></div>':'<div class="empty">'+ic('wallet')+'<p>No expenses yet.</p></div>');
+  $('main').innerHTML=h;}
+var _bh=[];
+function budgetForm(){var b=S.data.budget;_bh=b.heads.length?b.heads.map(function(x){return {name:x.name,alloc:x.alloc};}):b.defaultHeads.map(function(n){return {name:n,alloc:0};});
+  sheet('Set budget','<label style="margin-top:0">Total budget (₹)</label><input id="bg_total" inputmode="numeric" value="'+(b.total||'')+'"><label>Split by head (₹)</label><div id="bg_rows"></div><button class="btn sm" style="margin-top:8px" onclick="bgSync();_bh.push({name:\'\',alloc:0});drawBgRows()">'+ic('plus')+'Add head</button><div class="mut" id="bg_sum" style="margin-top:10px"></div><div class="err" id="err"></div><button class="btn p full" style="margin-top:14px" onclick="saveBudget(this)">Save budget</button>');drawBgRows();}
+function drawBgRows(){$('bg_rows').innerHTML=_bh.map(function(x,i){return '<div class="row" style="margin-bottom:6px"><input class="bh_n" placeholder="Head name" value="'+esc(x.name)+'" style="flex:1.4"><input class="bh_a" inputmode="numeric" placeholder="0" value="'+(x.alloc||'')+'" style="flex:1" oninput="bgSum()"><button class="ib sm" onclick="bgSync();_bh.splice('+i+',1);drawBgRows()" aria-label="Remove">'+ic('x')+'</button></div>';}).join('');bgSum();}
+function bgSync(){var n=document.querySelectorAll('.bh_n'),a=document.querySelectorAll('.bh_a');_bh=[].map.call(n,function(x,i){return {name:x.value,alloc:Number(a[i].value)||0};});}
+function bgSum(){bgSync();var s=_bh.reduce(function(t,x){return t+x.alloc;},0),tot=Number(($('bg_total')||{}).value)||0;$('bg_sum').innerHTML='Split total: <b>'+money(s)+'</b>'+(tot&&s!==tot?' <span class="'+(s>tot?'red':'')+'">('+(s>tot?'more':'less')+' than total by '+money(Math.abs(tot-s))+')</span>':'');}
+function saveBudget(b){bgSync();busy(b,1);A('api_setBudget',{eventId:S.ev,total:$('bg_total').value,heads:_bh}).then(function(d){closeSheet();toast('Budget saved');useData(d);}).catch(function(e){busy(b,0);$('err').textContent=errMsg(e);});}
+function expenseForm(id){var b=S.data.budget,x=id?b.expenses.filter(function(e){return e.expId===id;})[0]:{spentOn:new Date().toISOString().slice(0,10)};
+  var heads=(b.heads.length?b.heads.map(function(h){return h.name;}):b.defaultHeads);
+  sheet(id?'Edit expense':'Add expense','<div class="two"><div><label style="margin-top:0">Head</label><select id="x_head">'+heads.map(function(n){return '<option '+(x.head===n?'selected':'')+'>'+esc(n)+'</option>';}).join('')+'</select></div><div><label style="margin-top:0">Amount (₹)</label><input id="x_amt" inputmode="decimal" value="'+(x.amount||'')+'"></div></div>'+
+  '<div class="two"><div><label>Date</label><input id="x_date" type="date" value="'+esc(x.spentOn)+'"></div><div><label>Paid by</label><input id="x_by" value="'+esc(x.paidBy)+'" placeholder="Name"></div></div>'+
+  '<label>Note</label><input id="x_note" value="'+esc(x.note)+'" placeholder="What was this for?">'+
+  '<label>Bill photo (optional)</label>'+(x.billId?'<div class="thumbs" style="margin:0 0 8px"><img src="'+img(x.billId)+'" onclick="viewImg(\''+x.billId+'\')"></div>':'')+'<input id="x_bill" type="file" accept="image/*">'+
+  '<div class="err" id="err"></div><button class="btn p full" style="margin-top:14px" onclick="saveExpense(this,\''+(id||'')+'\')">Save</button>'+(id?'<button class="btn bad full" style="margin-top:8px" onclick="deleteExpense(\''+id+'\')">Delete expense</button>':''));}
+function saveExpense(b,id){busy(b,1);$('err').textContent='';var f=$('x_bill').files[0];
+  (f?readImg(f,1600):Promise.resolve('')).then(function(bill){return A('api_saveExpense',{eventId:S.ev,expense:{expId:id||undefined,head:$('x_head').value,amount:$('x_amt').value,spentOn:$('x_date').value,paidBy:$('x_by').value,note:$('x_note').value,bill:bill||undefined}});})
+  .then(function(d){closeSheet();toast('Expense saved');useData(d);}).catch(function(e){busy(b,0);$('err').textContent=errMsg(e);});}
+function deleteExpense(id){if(!confirmBox('Delete this expense?'))return;A('api_deleteExpense',{eventId:S.ev,expId:id}).then(function(d){closeSheet();toast('Deleted');useData(d);}).catch(function(e){toast(errMsg(e));});}
+
 function addPerson(){sheet('Add person','<label>Search by name, username or mobile</label><input id="u_q" oninput="clearTimeout(window._uq);window._uq=setTimeout(findUsers,350)" placeholder="Type at least 2 letters"><label>Role</label><select id="u_role"><option value="volunteer">Volunteer</option><option value="admin">Event admin</option><option value="artist">Artist (approved)</option></select><div id="u_res" style="margin-top:10px"></div><p class="mut">Not found? Ask them to create an account first.</p>');}
 function findUsers(){var q=$('u_q').value;if(q.length<2){$('u_res').innerHTML='';return;}$('u_res').innerHTML=loading();
   A('api_findUsers',{eventId:S.ev,q:q}).then(function(l){$('u_res').innerHTML=l.length?'<div class="card" style="padding:2px 14px">'+l.map(function(u){return '<div class="li">'+avatar(u)+'<div class="grow"><b>'+esc(u.fullName)+'</b><span class="mut">@'+esc(u.username)+' · '+esc(u.mobile||'')+'</span></div><button class="btn sm p" onclick="setRole(\''+u.userId+'\',this)">Add</button></div>';}).join('')+'</div>':'<div class="mut">No account found.</div>';}).catch(function(e){$('u_res').innerHTML='<div class="err">'+esc(errMsg(e))+'</div>';});}
 function setRole(uid,b){busy(b,1);A('api_setRole',{eventId:S.ev,userId:uid,role:$('u_role').value}).then(function(d){closeSheet();toast('Added');useData(d);}).catch(function(e){busy(b,0);toast(errMsg(e));});}
 
 /* ---- TASKS ---- */
-function drawTasks(){var admin=S.data.role==='admin',l=(S.data.tasks||[]).slice().sort(function(a,b){return (a.status==='done')-(b.status==='done');});
-  var h='<div class="row"><h1 class="grow">Tasks</h1>'+(admin?'<button class="btn p sm" onclick="taskForm()">'+ic('plus')+'Add task</button>':'')+'</div>';
-  h+=l.length?'<div class="card" style="padding:2px 14px">'+l.map(function(t){var mine=!t.assignedTo||t.assignedTo===S.me.userId;return '<div class="li"><button class="chk '+(t.status==='done'?'on':'')+'" '+(admin||mine?'onclick="taskDone(\''+t.taskId+'\','+(t.status!=='done')+')"':'disabled')+'>'+ic('check')+'</button><div class="grow"'+(admin?' style="cursor:pointer" onclick="taskForm(\''+t.taskId+'\')"':'')+'><b style="'+(t.status==='done'?'text-decoration:line-through;opacity:.6':'')+'">'+esc(t.title)+'</b><span class="mut">'+esc(t.assignedName)+(t.due?' · due '+esc(fmtDate(t.due)):'')+(t.detail?' · '+esc(t.detail):'')+'</span></div></div>';}).join('')+'</div>':'<div class="empty">'+ic('list')+'<p>No tasks yet.</p></div>';
+function myTeams(){var me=S.me.userId;return (S.data.teams||[]).filter(function(t){return t.headId===me||t.members.some(function(m){return m.userId===me;});}).map(function(t){return t.teamId;});}
+function drawTasks(){var admin=S.data.role==='admin',canAdd=admin||(S.data.myHeadTeams||[]).length,my=myTeams(),heads=S.data.myHeadTeams||[],l=(S.data.tasks||[]).slice().sort(function(a,b){return (a.status==='done')-(b.status==='done');});
+  var h='<div class="row"><h1 class="grow">Tasks</h1>'+(canAdd?'<button class="btn p sm" onclick="taskForm()">'+ic('plus')+'Add task</button>':'')+'</div>';
+  h+=l.length?'<div class="card" style="padding:2px 14px">'+l.map(function(t){var mine=t.assignedTo?t.assignedTo===S.me.userId:(!t.teamId||my.indexOf(t.teamId)>=0),edit=admin||(t.teamId&&heads.indexOf(t.teamId)>=0);return '<div class="li"><button class="chk '+(t.status==='done'?'on':'')+'" '+(admin||mine?'onclick="taskDone(\''+t.taskId+'\','+(t.status!=='done')+')"':'disabled')+'>'+ic('check')+'</button><div class="grow"'+(edit?' style="cursor:pointer" onclick="taskForm(\''+t.taskId+'\')"':'')+'><b style="'+(t.status==='done'?'text-decoration:line-through;opacity:.6':'')+'">'+esc(t.title)+'</b><span class="mut">'+esc(t.assignedName)+(t.due?' · due '+esc(fmtDate(t.due)):'')+(t.detail?' · '+esc(t.detail):'')+'</span></div></div>';}).join('')+'</div>':'<div class="empty">'+ic('list')+'<p>No tasks yet.</p></div>';
   $('main').innerHTML=h;}
-function taskForm(id){var t=id?S.data.tasks.filter(function(x){return x.taskId===id;})[0]:{},vols=(S.data.team||[]).filter(function(x){return x.role!=='artist';});
+function taskForm(id){var t=id?S.data.tasks.filter(function(x){return x.taskId===id;})[0]:{},admin=S.data.role==='admin',heads=S.data.myHeadTeams||[];
+  var teams=(S.data.teams||[]).filter(function(x){return admin||heads.indexOf(x.teamId)>=0;}),opts='';
+  if(admin){var vols=(S.data.team||[]).filter(function(x){return x.role!=='artist';});opts+='<option value="">Everyone</option>';
+    if(teams.length)opts+='<optgroup label="Teams">'+teams.map(function(x){return '<option value="team:'+x.teamId+'" '+(t.teamId===x.teamId&&!t.assignedTo?'selected':'')+'>'+esc(x.name)+' team</option>';}).join('')+'</optgroup>';
+    opts+='<optgroup label="People">'+vols.map(function(v){return '<option value="'+v.userId+'" '+(t.assignedTo===v.userId?'selected':'')+'>'+esc(v.name)+'</option>';}).join('')+'</optgroup>';}
+  else teams.forEach(function(x){opts+='<optgroup label="'+esc(x.name)+'"><option value="team:'+x.teamId+'" '+(t.teamId===x.teamId&&!t.assignedTo?'selected':'')+'>Whole team</option>'+x.members.map(function(m){return '<option value="'+x.teamId+':'+m.userId+'" '+(t.assignedTo===m.userId?'selected':'')+'>'+esc(m.fullName)+'</option>';}).join('')+'</optgroup>';});
   sheet(id?'Edit task':'New task','<label>Task</label><input id="t_title" value="'+esc(t.title)+'"><label>Details</label><textarea id="t_detail">'+esc(t.detail)+'</textarea>'+
-  '<div class="two"><div><label>Assign to</label><select id="t_to"><option value="">Everyone</option>'+vols.map(function(v){return '<option value="'+v.userId+'" '+(t.assignedTo===v.userId?'selected':'')+'>'+esc(v.name)+'</option>';}).join('')+'</select></div><div><label>Due date</label><input id="t_due" type="date" value="'+esc(t.due)+'"></div></div>'+
+  '<div class="two"><div><label>Assign to</label><select id="t_to">'+opts+'</select></div><div><label>Due date</label><input id="t_due" type="date" value="'+esc(t.due)+'"></div></div>'+
   '<div class="err" id="err"></div><button class="btn p full" style="margin-top:14px" onclick="saveTask(this,\''+(id||'')+'\')">Save</button>'+(id?'<button class="btn bad full" style="margin-top:8px" onclick="delTask(\''+id+'\')">Delete task</button>':''));}
-function saveTask(b,id){busy(b,1);A('api_saveTask',{eventId:S.ev,task:{taskId:id||undefined,title:$('t_title').value,detail:$('t_detail').value,assignedTo:$('t_to').value,due:$('t_due').value}}).then(function(d){closeSheet();toast('Task saved');useData(d);}).catch(function(e){busy(b,0);$('err').textContent=errMsg(e);});}
+function saveTask(b,id){busy(b,1);var v=$('t_to').value,teamId='',to='';
+  if(v.indexOf('team:')===0)teamId=v.slice(5);else if(v.indexOf(':')>0){teamId=v.split(':')[0];to=v.split(':')[1];}else to=v;
+  A('api_saveTask',{eventId:S.ev,task:{taskId:id||undefined,title:$('t_title').value,detail:$('t_detail').value,assignedTo:to,teamId:teamId,due:$('t_due').value}}).then(function(d){closeSheet();toast('Task saved');useData(d);}).catch(function(e){busy(b,0);$('err').textContent=errMsg(e);});}
 function taskDone(id,v){A('api_setTaskDone',{taskId:id,done:v}).then(function(d){toast(v?'Done':'Reopened');useData(d);}).catch(function(e){toast(errMsg(e));});}
 function delTask(id){if(!confirmBox('Delete this task?'))return;A('api_deleteTask',{taskId:id}).then(function(d){closeSheet();useData(d);}).catch(function(e){toast(errMsg(e));});}
 

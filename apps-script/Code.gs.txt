@@ -13,7 +13,7 @@
  *     ADMIN_EMAIL below > set your password from the emailed code.
  *************************************************************/
 
-var APP_VERSION = '1.0.0';
+var APP_VERSION = '1.1.0';
 var APP_NAME    = 'OSOA Desk';
 
 /* ---- Super admin (no password stored here; set it via "Forgot password") ---- */
@@ -24,16 +24,18 @@ var ADMIN_NAME     = 'Vaibhav Tandon';
 /* ---- Drive folders ---- */
 var ROOT_FOLDER='My Apps', APP_FOLDER='OSOA Desk';
 var SUB_DB='1. Database', SUB_ART='2. Artworks', SUB_PHOTOS='3. Profile Photos',
-    SUB_LOGOS='4. Logos', SUB_COVERS='5. Event Covers', SUB_REPORTS='6. Reports';
+    SUB_LOGOS='4. Logos', SUB_COVERS='5. Event Covers', SUB_REPORTS='6. Reports', SUB_BILLS='7. Bills';
 var SS_NAME='OSOA Desk — Database';
 var TOKEN_DAYS=30;
-var SCHEMA_VERSION='3';
+var SCHEMA_VERSION='4';
 
 var DEFAULT_PROGRAMS=[
   {programId:'p-osoa', name:'One State One Artist', short:'OSOA', deskName:'OSOA Desk', color:'#D4A017'},
   {programId:'p-pwp',  name:'Paint with Prakash',   short:'PWP',  deskName:'PWP Desk',  color:'#D4A017'},
   {programId:'p-ws',   name:'Workshop',             short:'Workshop', deskName:'Workshop Desk', color:'#D4A017'}
 ];
+var TEAM_SUGGESTIONS=['Core / Organising','Finance','Creative','Art & Artist Relations','Hospitality','Logistics','Registration & Desk','Media & Social','Stage & Program','Sponsorship'];
+var BUDGET_HEADS=['Venue','Food','Travel','Stay','Art Material','Printing','Marketing','Awards','Misc'];
 var ART_CATEGORIES=['Painting','Sketching','Sculpture','Digital Art','Folk Art','Calligraphy','Photography','Mixed Media','Other'];
 
 /* ============================================================
@@ -71,9 +73,12 @@ function subFolder_(name){ return childFolder_(appFolder_(),name); }
 var SCHEMA={
   Users:['userId','fullName','username','passHash','salt','email','mobile','photoId','state','city','category','bio','instagram','isSuper','tokenHash','tokenExp','createdAt','lastLogin'],
   Programs:['programId','name','short','deskName','color','logoId','sort'],
-  Events:['eventId','programId','name','startDate','endDate','time','venue','city','state','mapUrl','contactName','contactPhone','about','coverId','status','isPublic','regOpen','createdBy','createdAt'],
+  Events:['eventId','programId','name','startDate','endDate','time','venue','city','state','mapUrl','contactName','contactPhone','about','coverId','status','isPublic','regOpen','createdBy','createdAt','budgetTotal','budgetJSON'],
   Roles:['roleId','eventId','userId','role','status','category','bio','artworkJSON','artTitle','checkedIn','checkedInAt','checkedInBy','note','createdAt','decidedBy','decidedAt'],
-  Tasks:['taskId','eventId','title','detail','assignedTo','due','status','createdBy','createdAt','doneAt'],
+  Tasks:['taskId','eventId','title','detail','assignedTo','due','status','createdBy','createdAt','doneAt','teamId'],
+  Teams:['teamId','eventId','name','headId','sort','createdBy','createdAt'],
+  TeamMembers:['id','teamId','eventId','userId','addedBy','addedAt'],
+  Expenses:['expId','eventId','head','amount','note','paidBy','spentOn','billId','addedBy','addedAt'],
   Announcements:['annId','eventId','title','body','audience','createdBy','createdAt'],
   Schedule:['itemId','eventId','day','time','title','detail'],
   Activity:['id','eventId','actorId','actorName','action','detail','at']
@@ -319,11 +324,19 @@ function api_eventData(p){
   var anns=readAll_('Announcements').filter(function(a){return a.eventId===e.eventId && (role==='admin'||a.audience==='all'||a.audience===role);})
     .sort(function(a,b){return String(b.createdAt).localeCompare(String(a.createdAt));});
   out.announcements=anns;
+  out.teams=teamsOut_(e.eventId,role,me);
+  var adm={}; readAll_('Users').forEach(function(u){ if(isSuper_(u)) adm[u.userId]=u; });
+  roles.forEach(function(r){ if(r.role==='admin'){ var u=find_('Users','userId',r.userId); if(u) adm[u.userId]=u; } });
+  out.admins=Object.keys(adm).map(function(k){var u=adm[k];var o=pubUser_(u);o.mobile=u.mobile;return o;});
+  out.myHeadTeams=headTeamIds_(me,e.eventId);
+  out.teamSuggestions=TEAM_SUGGESTIONS;
   if(role==='admin'||role==='volunteer'){
     out.artists=roles.filter(function(r){return r.role==='artist' && (role==='admin'||r.status==='approved');}).map(function(r){return roleOut_(r,role==='admin');});
     var tasks=readAll_('Tasks').filter(function(t){return t.eventId===e.eventId;});
-    out.tasks=(role==='admin'?tasks:tasks.filter(function(t){return t.assignedTo===me.userId||!t.assignedTo;})).map(taskOut_);
+    var myT=myTeamIds_(me,e.eventId);
+    out.tasks=(role==='admin'?tasks:tasks.filter(function(t){return t.assignedTo===me.userId||(t.teamId&&myT.indexOf(t.teamId)>=0)||(!t.assignedTo&&!t.teamId);})).map(taskOut_);
   }
+  if(role==='admin'||isFinanceHead_(me,e.eventId)){ out.budget=budgetOut_(e); out.canSetBudget=(role==='admin'); }
   if(role==='admin'){
     out.team=roles.filter(function(r){return r.role!=='artist';}).map(function(r){return roleOut_(r,true);});
     out.activity=readAll_('Activity').filter(function(a){return a.eventId===e.eventId;}).slice(-60).reverse();
@@ -338,7 +351,7 @@ function roleOut_(r,full){
   if(full){ o.mobile=u.mobile; o.email=u.email; o.note=r.note; o.decidedAt=r.decidedAt; }
   return o;
 }
-function taskOut_(t){ var u=t.assignedTo?find_('Users','userId',t.assignedTo):null; var o={}; SCHEMA.Tasks.forEach(function(k){o[k]=t[k];}); o.assignedName=u?u.fullName:'Everyone'; return o; }
+function taskOut_(t){ var u=t.assignedTo?find_('Users','userId',t.assignedTo):null, tm=t.teamId?find_('Teams','teamId',t.teamId):null; var o={}; SCHEMA.Tasks.forEach(function(k){o[k]=t[k];}); o.assignedName=u?u.fullName:(tm?tm.name+' team':'Everyone'); return o; }
 
 /* ---- Artist quick register (uses the logged-in account) ---- */
 function api_registerArtist(p){
@@ -433,7 +446,7 @@ function api_saveEvent(p){
 }
 function api_deleteEvent(p){
   var me=userByToken_(p.token); needSuper_(me);
-  ['Roles','Tasks','Announcements','Schedule'].forEach(function(s){
+  ['Roles','Tasks','Announcements','Schedule','Teams','TeamMembers','Expenses'].forEach(function(s){
     readAll_(s).filter(function(x){return x.eventId===p.eventId;}).forEach(function(x){ deleteWhere_(s,SCHEMA[s][0],x[SCHEMA[s][0]]); });
   });
   deleteWhere_('Events','eventId',p.eventId); log_(p.eventId,me,'Event deleted','');
@@ -456,9 +469,14 @@ function api_saveProgram(p){
 
 /* ---- Tasks ---- */
 function api_saveTask(p){
-  var me=userByToken_(p.token), t=p.task||{}; need_(me,p.eventId,['admin']);
+  var me=userByToken_(p.token), t=p.task||{}, role=roleOf_(me,p.eventId);
+  if(role!=='admin'){
+    var heads=headTeamIds_(me,p.eventId);
+    if(!t.teamId || heads.indexOf(t.teamId)<0) throw 'Only admins or the team head can add this task.';
+    if(t.taskId){ var old=find_('Tasks','taskId',t.taskId); if(!old||heads.indexOf(old.teamId)<0) throw 'You can only edit your team tasks.'; }
+  }
   if(!t.title) throw 'Please enter a task title.';
-  var row={title:t.title,detail:t.detail||'',assignedTo:t.assignedTo||'',due:t.due||''};
+  var row={title:t.title,detail:t.detail||'',assignedTo:t.assignedTo||'',due:t.due||'',teamId:t.teamId||''};
   if(t.taskId) updateWhere_('Tasks','taskId',t.taskId,row);
   else{ row.taskId=uid_('t'); row.eventId=p.eventId; row.status='open'; row.createdBy=me.userId; row.createdAt=now_(); appendRow_('Tasks',row); }
   log_(p.eventId,me,'Task saved',t.title);
@@ -467,14 +485,15 @@ function api_saveTask(p){
 function api_setTaskDone(p){
   var me=userByToken_(p.token), t=find_('Tasks','taskId',p.taskId); if(!t) throw 'Not found.';
   var role=need_(me,t.eventId,['admin','volunteer']);
-  if(role==='volunteer' && t.assignedTo && t.assignedTo!==me.userId) throw 'This task is assigned to someone else.';
+  if(role==='volunteer'){ var myT=myTeamIds_(me,t.eventId); if(t.assignedTo ? t.assignedTo!==me.userId : (t.teamId && myT.indexOf(t.teamId)<0)) throw 'This task is assigned to someone else.'; }
   updateWhere_('Tasks','taskId',t.taskId,{status:p.done?'done':'open',doneAt:p.done?now_():''});
   log_(t.eventId,me,p.done?'Task done':'Task reopened',t.title);
   return api_eventData({token:p.token,eventId:t.eventId});
 }
 function api_deleteTask(p){
   var me=userByToken_(p.token), t=find_('Tasks','taskId',p.taskId); if(!t) throw 'Not found.';
-  need_(me,t.eventId,['admin']); deleteWhere_('Tasks','taskId',t.taskId);
+  if(roleOf_(me,t.eventId)!=='admin' && headTeamIds_(me,t.eventId).indexOf(t.teamId)<0) throw 'You do not have access to this.';
+  deleteWhere_('Tasks','taskId',t.taskId);
   return api_eventData({token:p.token,eventId:t.eventId});
 }
 
@@ -540,8 +559,125 @@ function api_exportEventDoc(p){
     list.forEach(function(r){ var u=find_('Users','userId',r.userId)||{}; rows.push([u.fullName||'',u.mobile||'',u.state||'',r.category||'',r.status||'',String(r.checkedIn).toUpperCase()==='TRUE'?'Yes':'No']); });
     b.appendTable(rows);
   });
+  var teams=teamsOut_(e.eventId,'admin',me);
+  if(teams.length){ b.appendParagraph('Teams').setHeading(DocumentApp.ParagraphHeading.HEADING2);
+    teams.forEach(function(t){ b.appendListItem(t.name+' — Head: '+(t.head?t.head.fullName+' (@'+t.head.username+')':'-')+(t.members.length?' — Members: '+t.members.map(function(m){return m.fullName;}).join(', '):'')); }); }
+  var bg=budgetOut_(e);
+  if(bg.total||bg.expenses.length){ b.appendParagraph('Budget').setHeading(DocumentApp.ParagraphHeading.HEADING2);
+    b.appendParagraph('Total budget: Rs '+bg.total+'   Spent: Rs '+bg.spent+'   Remaining: Rs '+(bg.total-bg.spent));
+    var br=[['Head','Budget','Spent']]; bg.heads.forEach(function(h){ br.push([h.name,String(h.alloc),String(h.spent)]); }); b.appendTable(br); }
   var sch=scheduleOf_(e.eventId);
   if(sch.length){ b.appendParagraph('Schedule').setHeading(DocumentApp.ParagraphHeading.HEADING2); sch.forEach(function(s){ b.appendListItem((s.day||'')+' '+(s.time||'')+' — '+s.title+(s.detail?' ('+s.detail+')':'')); }); }
   doc.saveAndClose();
   return {url:doc.getUrl()};
+}
+
+/* ============================================================
+ *  TEAMS (departments) — admin picks teams + head; head manages members
+ * ========================================================== */
+function teamsOf_(eventId){ return readAll_('Teams').filter(function(t){return t.eventId===eventId;}).sort(function(a,b){return Number(a.sort||0)-Number(b.sort||0);}); }
+function headTeamIds_(me,eventId){ return teamsOf_(eventId).filter(function(t){return t.headId===me.userId;}).map(function(t){return t.teamId;}); }
+function myTeamIds_(me,eventId){
+  var ids=headTeamIds_(me,eventId);
+  readAll_('TeamMembers').forEach(function(m){ if(m.eventId===eventId && m.userId===me.userId && ids.indexOf(m.teamId)<0) ids.push(m.teamId); });
+  return ids;
+}
+function isFinanceHead_(me,eventId){ return teamsOf_(eventId).some(function(t){return t.headId===me.userId && /financ/i.test(t.name);}); }
+function teamsOut_(eventId,role,me){
+  var mem=readAll_('TeamMembers').filter(function(m){return m.eventId===eventId;});
+  return teamsOf_(eventId).map(function(t){
+    var h=t.headId?find_('Users','userId',t.headId):null, canManage=(role==='admin'||t.headId===me.userId);
+    var head=h?pubUser_(h):null; if(head) head.mobile=h.mobile;
+    return {teamId:t.teamId,name:t.name,headId:t.headId,head:head,canManage:canManage,
+      members:mem.filter(function(m){return m.teamId===t.teamId;}).map(function(m){ var u=find_('Users','userId',m.userId)||{}; var o=pubUser_(u); o.memberId=m.id; if(canManage) o.mobile=u.mobile; return o; })};
+  });
+}
+function userByKey_(key){
+  var k=String(key||'').trim().replace(/^@/,'').toLowerCase(), d=digits_(k);
+  if(!k) throw 'Please enter a username.';
+  var u=readAll_('Users').filter(function(x){ return String(x.username).toLowerCase()===k || (d.length===10 && digits_(x.mobile)===d); })[0];
+  if(!u) throw 'No account with username "'+k+'". Ask them to create an account first.';
+  return u;
+}
+function ensureVolunteer_(eventId,u,me){
+  var ex=readAll_('Roles').filter(function(r){return r.eventId===eventId&&r.userId===u.userId;})[0];
+  if(ex){ if(ex.role==='artist') throw u.fullName+' is registered as an artist in this event.'; return; }
+  if(isSuper_(u)) return;
+  appendRow_('Roles',{roleId:uid_('r'),eventId:eventId,userId:u.userId,role:'volunteer',status:'active',checkedIn:'FALSE',createdAt:now_(),artworkJSON:'[]'});
+}
+function api_saveTeam(p){
+  var me=userByToken_(p.token); need_(me,p.eventId,['admin']); var t=p.team||{};
+  var name=String(t.name||'').trim(); if(!name) throw 'Please enter a team name.';
+  if(teamsOf_(p.eventId).some(function(x){return x.teamId!==t.teamId && x.name.toLowerCase()===name.toLowerCase();})) throw 'This team already exists.';
+  var headId='';
+  if(String(t.headUsername||'').trim()){ var u=userByKey_(t.headUsername); ensureVolunteer_(p.eventId,u,me); headId=u.userId; }
+  if(t.teamId){ updateWhere_('Teams','teamId',t.teamId,{name:name,headId:headId}); }
+  else appendRow_('Teams',{teamId:uid_('tm'),eventId:p.eventId,name:name,headId:headId,sort:teamsOf_(p.eventId).length+1,createdBy:me.userId,createdAt:now_()});
+  log_(p.eventId,me,'Team saved',name);
+  return api_eventData({token:p.token,eventId:p.eventId});
+}
+function api_deleteTeam(p){
+  var me=userByToken_(p.token), t=find_('Teams','teamId',p.teamId); if(!t) throw 'Not found.';
+  need_(me,t.eventId,['admin']);
+  readAll_('TeamMembers').filter(function(m){return m.teamId===t.teamId;}).forEach(function(m){ deleteWhere_('TeamMembers','id',m.id); });
+  deleteWhere_('Teams','teamId',t.teamId); log_(t.eventId,me,'Team deleted',t.name);
+  return api_eventData({token:p.token,eventId:t.eventId});
+}
+function api_addTeamMember(p){
+  var me=userByToken_(p.token), t=find_('Teams','teamId',p.teamId); if(!t) throw 'Team not found.';
+  if(roleOf_(me,t.eventId)!=='admin' && t.headId!==me.userId) throw 'Only the team head or admin can add members.';
+  var u=userByKey_(p.username);
+  if(u.userId===t.headId) throw u.fullName+' is already the head of this team.';
+  if(readAll_('TeamMembers').some(function(m){return m.teamId===t.teamId&&m.userId===u.userId;})) throw u.fullName+' is already in this team.';
+  ensureVolunteer_(t.eventId,u,me);
+  appendRow_('TeamMembers',{id:uid_('m'),teamId:t.teamId,eventId:t.eventId,userId:u.userId,addedBy:me.userId,addedAt:now_()});
+  log_(t.eventId,me,'Added to '+t.name,u.fullName);
+  return api_eventData({token:p.token,eventId:t.eventId});
+}
+function api_removeTeamMember(p){
+  var me=userByToken_(p.token), m=find_('TeamMembers','id',p.memberId); if(!m) throw 'Not found.';
+  var t=find_('Teams','teamId',m.teamId);
+  if(roleOf_(me,m.eventId)!=='admin' && (!t||t.headId!==me.userId)) throw 'Only the team head or admin can remove members.';
+  deleteWhere_('TeamMembers','id',m.id); var u=find_('Users','userId',m.userId);
+  log_(m.eventId,me,'Removed from '+(t?t.name:'team'),u?u.fullName:'');
+  return api_eventData({token:p.token,eventId:m.eventId});
+}
+
+/* ============================================================
+ *  BUDGET + EXPENSES — admin sets budget; admin or Finance head adds expenses
+ * ========================================================== */
+function budgetOut_(e){
+  var heads=jp_(e.budgetJSON), total=Number(e.budgetTotal)||0;
+  var exps=readAll_('Expenses').filter(function(x){return x.eventId===e.eventId;}).sort(function(a,b){return String(b.spentOn||b.addedAt).localeCompare(String(a.spentOn||a.addedAt));});
+  var spentBy={}, spent=0; exps.forEach(function(x){ var a=Number(x.amount)||0; spent+=a; spentBy[x.head]=(spentBy[x.head]||0)+a; });
+  var names=heads.map(function(h){return h.name;});
+  Object.keys(spentBy).forEach(function(n){ if(names.indexOf(n)<0){ heads.push({name:n,alloc:0}); names.push(n);} });
+  return {total:total,spent:spent,defaultHeads:BUDGET_HEADS,
+    heads:heads.map(function(h){return {name:h.name,alloc:Number(h.alloc)||0,spent:spentBy[h.name]||0};}),
+    expenses:exps.map(function(x){ var u=find_('Users','userId',x.addedBy); var o={}; SCHEMA.Expenses.forEach(function(k){o[k]=x[k];}); o.amount=Number(x.amount)||0; o.addedName=u?u.fullName:''; return o; })};
+}
+function api_setBudget(p){
+  var me=userByToken_(p.token); need_(me,p.eventId,['admin']);
+  var heads=(p.heads||[]).filter(function(h){return h&&String(h.name||'').trim();}).map(function(h){return {name:String(h.name).trim(),alloc:Math.max(0,Number(h.alloc)||0)};});
+  var total=Math.max(0,Number(p.total)||0);
+  updateWhere_('Events','eventId',p.eventId,{budgetTotal:total,budgetJSON:JSON.stringify(heads)});
+  log_(p.eventId,me,'Budget set','Rs '+total);
+  return api_eventData({token:p.token,eventId:p.eventId});
+}
+function canExpense_(me,eventId){ if(roleOf_(me,eventId)!=='admin' && !isFinanceHead_(me,eventId)) throw 'Only admins or the Finance head can do this.'; }
+function api_saveExpense(p){
+  var me=userByToken_(p.token), x=p.expense||{}; canExpense_(me,p.eventId);
+  var amt=Number(x.amount); if(!(amt>0)) throw 'Please enter the amount.';
+  if(!x.head) throw 'Please choose a budget head.';
+  var row={head:x.head,amount:amt,note:x.note||'',paidBy:x.paidBy||'',spentOn:x.spentOn||''};
+  if(x.bill) row.billId=saveFile_(SUB_BILLS,x.bill,'bill-'+Date.now()+'.jpg');
+  if(x.expId){ var old=find_('Expenses','expId',x.expId); if(!old||old.eventId!==p.eventId) throw 'Not found.'; updateWhere_('Expenses','expId',x.expId,row); }
+  else{ row.expId=uid_('x'); row.eventId=p.eventId; row.addedBy=me.userId; row.addedAt=now_(); appendRow_('Expenses',row); }
+  log_(p.eventId,me,'Expense saved',x.head+' Rs '+amt);
+  return api_eventData({token:p.token,eventId:p.eventId});
+}
+function api_deleteExpense(p){
+  var me=userByToken_(p.token), x=find_('Expenses','expId',p.expId); if(!x) throw 'Not found.';
+  canExpense_(me,x.eventId); deleteWhere_('Expenses','expId',x.expId); log_(x.eventId,me,'Expense deleted',x.head+' Rs '+x.amount);
+  return api_eventData({token:p.token,eventId:x.eventId});
 }
