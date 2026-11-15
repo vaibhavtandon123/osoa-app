@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#D4A017">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="OSOA Desk">
+<title>OSOA Desk</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/icons/icon-180.png">
+<style>
+:root{--acc:#D4A017;--acc-ink:#1a1405;--bg:#f6f5f2;--card:#ffffff;--card2:#f0eee9;--txt:#1b1b1d;--sub:#5f5f66;--mut:#8d8d95;--line:rgba(0,0,0,.09);
+  --ok:#1f9d55;--okbg:rgba(31,157,85,.12);--warn:#b7791f;--warnbg:rgba(214,158,46,.16);--bad:#d64545;--badbg:rgba(214,69,69,.12);--r:14px;
+  --safe-b:env(safe-area-inset-bottom,0px);--safe-t:env(safe-area-inset-top,0px)}
+[data-theme=dark]{--bg:#0f0f11;--card:#18181b;--card2:#222226;--txt:#f3f3f4;--sub:#a9a9b2;--mut:#7b7b84;--line:rgba(255,255,255,.09);
+  --okbg:rgba(31,157,85,.2);--warnbg:rgba(214,158,46,.2);--badbg:rgba(214,69,69,.2)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Arial,sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--acc)}
+.wrap{max-width:860px;margin:0 auto;padding:0 16px}
+.top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line);padding-top:var(--safe-t)}
+.topin{display:flex;align-items:center;gap:10px;min-height:58px}
+.logo{width:38px;height:38px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:11px;letter-spacing:.3px;flex:none;overflow:hidden}
+.logo img{width:100%;height:100%;object-fit:contain;padding:4px}
+.ttl{flex:1;min-width:0;cursor:default}
+.ttl b{display:block;font-size:16px;line-height:1.2}
+.ttl small{display:block;color:var(--sub);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ttl.tap{cursor:pointer}
+.ib{width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:var(--card);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none}
+.ib svg{width:19px;height:19px}
+.av{width:38px;height:38px;border-radius:50%;background:var(--card2);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:var(--sub);overflow:hidden;flex:none}
+.av img{width:100%;height:100%;object-fit:cover}
+.av.lg{width:64px;height:64px;font-size:22px}
+main{padding:16px 0 calc(96px + var(--safe-b))}
+h1{font-size:24px;margin:6px 0 4px;line-height:1.25}
+h2{font-size:18px;margin:22px 0 10px}
+h3{font-size:15.5px;margin:0 0 4px}
+.sub{color:var(--sub)}.mut{color:var(--mut);font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:12px}
+.row{display:flex;align-items:center;gap:12px}
+.row .grow{flex:1;min-width:0}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);background:var(--card);border-radius:12px;padding:11px 16px;font-weight:600;cursor:pointer;min-height:44px;text-decoration:none;color:var(--txt)}
+.btn.p{background:var(--acc);border-color:var(--acc);color:var(--acc-ink)}
+.btn.bad{color:var(--bad)}
+.btn.ok{color:var(--ok)}
+.btn.sm{padding:7px 12px;min-height:36px;font-size:13.5px;border-radius:10px}
+.btn.full{width:100%}
+.btn svg{width:18px;height:18px}
+.btn:disabled{opacity:.55}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 8px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 14px;font-size:13.5px;font-weight:600;white-space:nowrap;cursor:pointer}
+.chip.on{background:var(--acc);border-color:var(--acc);color:var(--acc-ink)}
+.badge{display:inline-block;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--card2);color:var(--sub);white-space:nowrap}
+.badge.ok{background:var(--okbg);color:var(--ok)}.badge.warn{background:var(--warnbg);color:var(--warn)}.badge.bad{background:var(--badbg);color:var(--bad)}
+.badge.acc{background:color-mix(in srgb,var(--acc) 20%,transparent);color:color-mix(in srgb,var(--acc) 70%,var(--txt))}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.ev{background:var(--card);border:1px solid var(--line);border-radius:18px;overflow:hidden;cursor:pointer;transition:transform .12s}
+.ev:active{transform:scale(.985)}
+.ev .cv{height:120px;background:var(--acc);position:relative;display:flex;align-items:flex-end;padding:12px;color:#fff}
+.ev .cv img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.ev .cv .sh{position:absolute;inset:0;background:linear-gradient(180deg,transparent 30%,rgba(0,0,0,.55))}
+.ev .cv b{position:relative;font-size:13px;letter-spacing:.5px}
+.ev .bd{padding:12px 14px 14px}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+.stat small{color:var(--sub);font-size:12.5px;display:block}
+.stat b{font-size:24px}
+label{display:block;font-size:13px;font-weight:600;color:var(--sub);margin:12px 0 5px}
+input,select,textarea{width:100%;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:11px 12px;outline:none;font-size:16px}
+input:focus,select:focus,textarea:focus{border-color:var(--acc)}
+textarea{min-height:84px;resize:vertical}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;background:color-mix(in srgb,var(--card) 92%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line);padding-bottom:var(--safe-b)}
+.tabs .in{max-width:620px;margin:0 auto;display:flex}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 2px 8px;font-size:11.5px;font-weight:600;color:var(--mut);cursor:pointer;border:0;background:none}
+.tab svg{width:23px;height:23px}
+.tab.on{color:var(--acc)}
+.sheetbg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;display:flex;align-items:flex-end;justify-content:center;animation:fade .15s}
+.sheet{background:var(--bg);width:100%;max-width:620px;max-height:92vh;overflow:auto;border-radius:20px 20px 0 0;padding:8px 18px calc(22px + var(--safe-b));animation:up .2s}
+@media(min-width:700px){.sheetbg{align-items:center}.sheet{border-radius:20px;max-height:86vh}}
+.grab{width:40px;height:5px;border-radius:9px;background:var(--line);margin:4px auto 10px}
+.shead{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.shead h2{flex:1;margin:6px 0}
+@keyframes up{from{transform:translateY(40px);opacity:.4}}@keyframes fade{from{opacity:0}}
+.toast{position:fixed;left:50%;bottom:calc(92px + var(--safe-b));transform:translateX(-50%);background:var(--txt);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:600;font-size:14px;z-index:90;max-width:90vw;text-align:center;animation:fade .2s}
+.load{display:flex;justify-content:center;padding:60px 0}
+.spin{width:28px;height:28px;border:3px solid var(--line);border-top-color:var(--acc);border-radius:50%;animation:sp 0.8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.empty{text-align:center;padding:36px 16px;color:var(--sub)}
+.empty svg{width:42px;height:42px;color:var(--mut)}
+.thumbs{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.thumbs img,.thumbs .add{width:64px;height:64px;border-radius:10px;object-fit:cover;background:var(--card2);cursor:pointer}
+.thumbs .add{display:flex;align-items:center;justify-content:center;border:1.5px dashed var(--line);color:var(--mut)}
+.tw{position:relative}.tw .x{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;background:var(--bad);color:#fff;border:0;font-size:13px;line-height:22px;padding:0;cursor:pointer}
+.gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+.gi{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer}
+.gi .im{aspect-ratio:1;background:var(--card2)}
+.gi .im img{width:100%;height:100%;object-fit:cover;display:block}
+.gi .t{padding:8px 10px}
+.gi .t b{display:block;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hero{border-radius:20px;overflow:hidden;background:var(--acc);color:#fff;position:relative;min-height:170px;display:flex;align-items:flex-end;padding:18px}
+.hero img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.hero .sh{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.05) 20%,rgba(0,0,0,.65))}
+.hero .c{position:relative}
+.hero h1{color:#fff;margin:4px 0}
+.cd{display:flex;gap:8px;margin-top:10px}
+.cd div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 0;text-align:center;flex:1}
+.cd b{font-size:20px;display:block}.cd small{font-size:11px;color:var(--sub)}
+.li{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+.li:last-child{border-bottom:0}
+.li>svg{width:20px;height:20px;flex:none;color:var(--sub)}
+.li .grow{flex:1;min-width:0}
+.li .grow b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chk{width:30px;height:30px;border-radius:50%;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;background:none;padding:0}
+.chk.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.chk svg{width:16px;height:16px}
+.seg{display:flex;background:var(--card2);border-radius:12px;padding:3px;gap:3px}
+.seg button{flex:1;border:0;background:none;border-radius:9px;padding:8px 2px;font-weight:600;font-size:12.5px;white-space:nowrap;color:var(--sub);cursor:pointer}
+.seg button.on{background:var(--card);color:var(--txt);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.err{color:var(--bad);font-size:13.5px;margin-top:8px;min-height:1px}
+.auth{max-width:420px;margin:0 auto}
+.sw{width:38px;height:38px;border-radius:10px;border:2px solid var(--line);cursor:pointer}
+.sw.on{border-color:var(--txt)}
+.menu .li{cursor:pointer}
+.menu .li svg{width:20px;height:20px;color:var(--sub)}
+.viewer{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:80;display:flex;align-items:center;justify-content:center;padding:20px}
+.viewer img{max-width:100%;max-height:100%;border-radius:8px}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* ============ OSOA Desk — frontend ============ */
+var VERSIONS=[
+  {v:'1.0.0',d:'15 Nov 2026',t:'First version: event picker, guest page, login/sign up, artist registration with approval (status, WhatsApp, email), admin dashboard, team roles, volunteer check-in, tasks, announcements, schedule, programs (desk name, colour, logo), light/dark theme.'}
+];
+var S={token:localStorage.getItem('osoa-token')||'',me:null,programs:[],events:[],cats:[],filter:'all',ev:null,data:null,pub:null,tab:'',sub:{}};
+var $=function(id){return document.getElementById(id);};
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function call(fn,arg){return fetch('/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fn:fn,arg:arg})}).then(function(r){return r.json();}).then(function(d){if(d&&Object.prototype.hasOwnProperty.call(d,'e'))throw d.e;return d?d.r:null;});}
+function A(fn,arg){arg=arg||{};arg.token=S.token;return call(fn,arg).catch(function(e){if(/log in again|expired/i.test(String(e))){logoutLocal();}throw e;});}
+function img(id){return '/img?id='+encodeURIComponent(id);}
+function toast(t){var d=document.createElement('div');d.className='toast';d.textContent=t;document.body.appendChild(d);setTimeout(function(){d.remove();},2600);}
+function errMsg(e){return String(e&&e.message?e.message:e);}
+function busy(btn,on,txt){if(!btn)return;if(on){btn._t=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spin" style="width:18px;height:18px;border-width:2px"></span>';}else{btn.disabled=false;btn.innerHTML=txt||btn._t;}}
+function initials(n){return String(n||'?').split(/\s+/).filter(Boolean).slice(0,2).map(function(w){return w[0];}).join('').toUpperCase();}
+function avatar(u,cls){return '<div class="av '+(cls||'')+'">'+(u&&u.photoId?'<img loading="lazy" src="'+img(u.photoId)+'">':esc(initials(u&&(u.fullName||u.name))))+'</div>';}
+function fmtDate(d){if(!d)return '';var x=new Date(d+'T00:00:00');if(isNaN(x))return d;return x.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});}
+function fmtRange(a,b){return b&&b!==a?fmtDate(a)+' – '+fmtDate(b):fmtDate(a);}
+function ago(t){if(!t)return '';var s=(Date.now()-new Date(t))/1000;if(s<60)return 'just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return new Date(t).toLocaleDateString('en-IN',{day:'numeric',month:'short'});}
+function prog(id){return S.programs.filter(function(p){return p.programId===id;})[0]||{deskName:'OSOA Desk',short:'OSOA',color:'#D4A017'};}
+function waLink(mobile,msg){var m=String(mobile||'').replace(/\D/g,'').slice(-10);return 'https://wa.me/91'+m+'?text='+encodeURIComponent(msg||'');}
+function statusBadge(s){var m={approved:'ok Approved',pending:'warn Pending',rejected:'bad Rejected',active:'ok Active',Upcoming:'acc Upcoming',Live:'ok Live',Completed:' Completed'}[s]||(' '+(s||''));var i=m.indexOf(' ');return '<span class="badge '+m.slice(0,i)+'">'+esc(m.slice(i+1))+'</span>';}
+function roleName(r){return {admin:'Admin',volunteer:'Volunteer',artist:'Artist'}[r]||'Guest';}
+
+/* ---- icons ---- */
+var IC={
+home:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>',users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 010 7M18 14.5c2 .7 3.2 2.6 3.6 5.5"/>',
+check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',list:'<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/>',more:'<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>',
+cal:'<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',bell:'<path d="M6 16V11a6 6 0 0112 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 004 0"/>',
+palette:'<path d="M12 3a9 9 0 100 18c1.2 0 1.8-.8 1.8-1.7 0-1-.8-1.4-.8-2.3 0-1 .8-1.6 1.8-1.6H17a4 4 0 004-4C21 6.7 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10" cy="7" r="1.2"/><circle cx="15" cy="7.5" r="1.2"/>',
+user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.2-6 8-6s7 2 8 6"/>',plus:'<path d="M12 5v14M5 12h14"/>',x:'<path d="M6 6l12 12M18 6L6 18"/>',search:'<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>',
+sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>',moon:'<path d="M20 14.5A8 8 0 019.5 4 8 8 0 1020 14.5z"/>',
+out:'<path d="M15 4h3a2 2 0 012 2v12a2 2 0 01-2 2h-3"/><path d="M10 17l-5-5 5-5M5 12h11"/>',edit:'<path d="M4 20h4L19 9l-4-4L4 16z"/>',trash:'<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+wa:'<path d="M4 20l1.3-4A8 8 0 1112 20a8 8 0 01-3.9-1z"/><path d="M9 9.5c.3 2.3 2.2 4.2 4.5 4.5l1-1.2 1.8.8c-.3 1-1.2 1.6-2.2 1.4-3-.5-5.1-2.6-5.6-5.6-.2-1 .4-1.9 1.4-2.2l.8 1.8z"/>',
+phone:'<path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z"/>',map:'<path d="M12 21s-7-6.2-7-11.5a7 7 0 0114 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
+grid:'<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
+chart:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',back:'<path d="M15 5l-7 7 7 7"/>',doc:'<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/>',
+gear:'<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/>',
+eye:'<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',ig:'<rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="1"/>',
+switch:'<path d="M7 7h13l-3-3M17 17H4l3 3"/>',info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>'
+};
+function ic(n){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'+(IC[n]||'')+'</svg>';}
+
+/* ---- theme ---- */
+function applyTheme(){var t=localStorage.getItem('osoa-theme')||'auto';var dark=t==='dark'||(t==='auto'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',dark?'dark':'light');}
+function cycleTheme(){var t=localStorage.getItem('osoa-theme')||'auto';var n={auto:'light',light:'dark',dark:'auto'}[t];localStorage.setItem('osoa-theme',n);applyTheme();toast('Theme: '+{auto:'Auto (phone setting)',light:'Light',dark:'Dark'}[n]);render();}
+function themeIcon(){return document.documentElement.getAttribute('data-theme')==='dark'?'moon':'sun';}
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',applyTheme);
+function setAccent(c){c=c||'#D4A017';document.documentElement.style.setProperty('--acc',c);var m=document.querySelector('meta[name=theme-color]');if(m)m.content=c;
+  var r=parseInt(c.substr(1,2),16),g=parseInt(c.substr(3,2),16),b=parseInt(c.substr(5,2),16);document.documentElement.style.setProperty('--acc-ink',(r*299+g*587+b*114)/1000>150?'#1a1405':'#ffffff');}
+applyTheme();
+
+/* ---- sheets ---- */
+function sheet(title,body,opts){closeSheet();var bg=document.createElement('div');bg.className='sheetbg';bg.id='sheetbg';
+  bg.innerHTML='<div class="sheet"><div class="grab"></div><div class="shead"><h2>'+esc(title)+'</h2><button class="ib" onclick="closeSheet()" aria-label="Close">'+ic('x')+'</button></div><div id="sbody">'+body+'</div></div>';
+  bg.addEventListener('click',function(e){if(e.target===bg)closeSheet();});document.body.appendChild(bg);document.body.style.overflow='hidden';}
+function closeSheet(){var b=$('sheetbg');if(b)b.remove();document.body.style.overflow='';}
+function viewImg(id){var v=document.createElement('div');v.className='viewer';v.innerHTML='<img src="'+img(id)+'">';v.onclick=function(){v.remove();};document.body.appendChild(v);}
+function confirmBox(msg){return window.confirm(msg);}
+
+/* ---- image helpers ---- */
+function readImg(file,max,type){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(){var im=new Image();im.onload=function(){var w=im.width,h=im.height,s=Math.min(1,max/Math.max(w,h));var c=document.createElement('canvas');c.width=Math.round(w*s);c.height=Math.round(h*s);
+  var x=c.getContext('2d');if(type!=='image/png'){x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);}x.drawImage(im,0,0,c.width,c.height);res(c.toDataURL(type||'image/jpeg',.85));};im.onerror=function(){rej('Could not read that image.');};im.src=r.result;};r.readAsDataURL(file);});}
+
+/* ---- routing ---- */
+function go(h){if(location.hash===h)route();else location.hash=h;}
+window.addEventListener('hashchange',route);
+function parts(){return location.hash.replace(/^#\/?/,'').split('/');}
+function route(){closeSheet();var p=parts();window.scrollTo(0,0);
+  if(p[0]==='e'&&p[1]){openEvent(p[1]);}
+  else if(p[0]==='login'){S.ev=p[1]||null;renderAuth(p[2]||'login');}
+  else if(p[0]==='programs'){renderPrograms();}
+  else if(p[0]==='people'){renderPeople();}
+  else{S.ev=null;S.data=null;S.pub=null;renderHome();}}
+function render(){route();}
+function shell(o){
+  var acc=o.color||'#D4A017';setAccent(acc);
+  var logo=o.logoId?'<div class="logo"><img src="'+img(o.logoId)+'"></div>':'<div class="logo">'+esc((o.short||'OSOA').slice(0,5))+'</div>';
+  var right='<button class="ib" onclick="cycleTheme()" aria-label="Theme">'+ic(themeIcon())+'</button>';
+  right+=S.me?'<div onclick="openAccount()" style="cursor:pointer">'+avatar(S.me)+'</div>':'<button class="btn sm" onclick="go(\'#/login/'+(S.ev||'')+'\')">Login</button>';
+  return '<div class="top"><div class="wrap topin">'+(o.back?'<button class="ib" onclick="'+o.back+'" aria-label="Back">'+ic('back')+'</button>':'')+logo+
+    '<div class="ttl'+(o.tap?' tap':'')+'" '+(o.tap?'onclick="'+o.tap+'"':'')+'><b>'+esc(o.title)+'</b>'+(o.subtitle?'<small>'+esc(o.subtitle)+(o.tap?' ▾':'')+'</small>':'')+'</div>'+right+'</div></div>';
+}
+function loading(){return '<div class="load"><div class="spin"></div></div>';}
+function logoutLocal(){S.token='';S.me=null;localStorage.removeItem('osoa-token');}
+
+/* ============ HOME: choose an event ============ */
+function loadInit(){return call('api_publicInit',{token:S.token}).then(function(r){S.programs=r.programs;S.events=r.events;S.cats=r.categories;S.me=r.me;if(!r.me&&S.token)logoutLocal();return r;});}
+function renderHome(){
+  var app=$('app');app.innerHTML=shell({title:'Event Desk',subtitle:'Choose an event'})+'<main class="wrap">'+loading()+'</main>';
+  loadInit().then(drawHome).catch(function(e){app.querySelector('main').innerHTML='<div class="empty">'+ic('info')+'<p>'+esc(errMsg(e))+'</p><button class="btn" onclick="render()">Try again</button></div>';});
+}
+function drawHome(){
+  var sup=S.me&&S.me.isSuper, h='';
+  h+='<h1>Hello'+(S.me?', '+esc(S.me.fullName.split(' ')[0]):'')+'</h1><p class="sub" style="margin:0 0 14px">Choose an event to continue.</p>';
+  if(sup)h+='<div class="btns" style="margin-bottom:14px"><button class="btn p" onclick="editEvent()">'+ic('plus')+'New event</button><button class="btn" onclick="go(\'#/programs\')">'+ic('palette')+'Programs</button><button class="btn" onclick="go(\'#/people\')">'+ic('users')+'People</button></div>';
+  h+='<div class="chips"><div class="chip '+(S.filter==='all'?'on':'')+'" onclick="S.filter=\'all\';drawHome()">All</div>'+S.programs.map(function(p){return '<div class="chip '+(S.filter===p.programId?'on':'')+'" onclick="S.filter=\''+p.programId+'\';drawHome()">'+esc(p.short)+'</div>';}).join('')+'</div>';
+  var evs=S.events.filter(function(e){return S.filter==='all'||e.programId===S.filter;});
+  if(!evs.length)h+='<div class="empty">'+ic('cal')+'<p>No events here yet.'+(sup?' Tap “New event” to create one.':'')+'</p></div>';
+  else h+='<div class="grid">'+evs.map(evCard).join('')+'</div>';
+  $('app').querySelector('main').innerHTML=h;setAccent((S.filter!=='all'?prog(S.filter).color:'')||'#D4A017');
+}
+function evCard(e){var p=prog(e.programId),my=S.me&&S.me.roles[e.eventId];
+  return '<div class="ev" onclick="go(\'#/e/'+e.eventId+'\')"><div class="cv" style="background:'+esc(p.color)+'">'+(e.coverId?'<img loading="lazy" src="'+img(e.coverId)+'"><div class="sh"></div>':'')+'<b>'+esc(p.short)+'</b></div><div class="bd">'+
+  '<div class="row" style="align-items:flex-start"><div class="grow"><h3>'+esc(e.name)+'</h3><div class="mut">'+esc(fmtRange(e.startDate,e.endDate))+(e.city?' · '+esc(e.city):'')+'</div></div>'+statusBadge(e.status)+'</div>'+
+  '<div class="btns" style="margin-top:8px">'+(my?'<span class="badge acc">You: '+roleName(my.role)+(my.role==='artist'&&my.status!=='approved'?' ('+esc(my.status)+')':'')+'</span>':'')+(e.artistCount?'<span class="badge">'+e.artistCount+' artists</span>':'')+(e.stateCount?'<span class="badge">'+e.stateCount+' states</span>':'')+'</div></div></div>';}
+
+/* ============ AUTH ============ */
+function renderAuth(mode){
+  var e=S.ev&&S.events.filter(function(x){return x.eventId===S.ev;})[0], p=e?prog(e.programId):{};
+  var back=S.ev?"go('#/e/"+S.ev+"')":"go('#/')";
+  $('app').innerHTML=shell({title:p.deskName||'Event Desk',subtitle:e?e.name:'',color:p.color,logoId:p.logoId,short:p.short,back:back})+'<main class="wrap"><div class="auth" id="auth"></div></main>';
+  drawAuth(mode);
+}
+function drawAuth(mode){var h='';
+  if(mode==='signup'){
+    h='<h1>Create account</h1><p class="sub">One account works for every event.</p>'+
+    '<label>Full name</label><input id="f_name" autocomplete="name">'+
+    '<label>Username</label><input id="f_user" autocapitalize="none" autocomplete="username" placeholder="ramesh.kumar">'+
+    '<div class="two"><div><label>Mobile</label><input id="f_mob" inputmode="tel" placeholder="10-digit number"></div><div><label>Email</label><input id="f_email" type="email" inputmode="email" autocapitalize="none"></div></div>'+
+    '<div class="two"><div><label>State</label><input id="f_state" list="states"></div><div><label>City</label><input id="f_city"></div></div>'+
+    '<label>Password</label><input id="f_pass" type="password" autocomplete="new-password" placeholder="At least 6 characters">'+
+    '<div class="err" id="err"></div><button class="btn p full" style="margin-top:14px" onclick="doSignup(this)">Create account</button>'+
+    '<p class="sub" style="text-align:center">Already have an account? <a href="javascript:drawAuth(\'login\')">Login</a></p>'+statesList();
+  }else if(mode==='forgot'){
+    h='<h1>Reset password</h1><p class="sub">We will email you a 6-digit code.</p><label>Email</label><input id="f_email" type="email" autocapitalize="none">'+
+    '<div id="step2" class="hide"><label>Code from email</label><input id="f_code" inputmode="numeric"><label>New password</label><input id="f_pass" type="password" autocomplete="new-password"></div>'+
+    '<div class="err" id="err"></div><button class="btn p full" style="margin-top:14px" id="fbtn" onclick="doForgot(this)">Send code</button>'+
+    '<p class="sub" style="text-align:center"><a href="javascript:drawAuth(\'login\')">Back to login</a></p>';
+  }else{
+    h='<h1>Login</h1><p class="sub">Use your username, mobile or email.</p>'+
+    '<label>Username / mobile / email</label><input id="f_user" autocapitalize="none" autocomplete="username">'+
+    '<label>Password</label><input id="f_pass" type="password" autocomplete="current-password" onkeydown="if(event.key===\'Enter\')doLogin($(\'lbtn\'))">'+
+    '<div class="err" id="err"></div><button class="btn p full" id="lbtn" style="margin-top:14px" onclick="doLogin(this)">Login</button>'+
+    '<p class="sub" style="text-align:center;margin-top:16px"><a href="javascript:drawAuth(\'forgot\')">Forgot password?</a></p>'+
+    '<div class="card" style="text-align:center;margin-top:18px"><p style="margin:0 0 10px">New here?</p><button class="btn full" onclick="drawAuth(\'signup\')">Create account</button></div>';
+  }
+  $('auth').innerHTML=h;
+}
+var STATES=['Andhra Pradesh','Arunachal Pradesh','Assam','Bihar','Chhattisgarh','Goa','Gujarat','Haryana','Himachal Pradesh','Jharkhand','Karnataka','Kerala','Madhya Pradesh','Maharashtra','Manipur','Meghalaya','Mizoram','Nagaland','Odisha','Punjab','Rajasthan','Sikkim','Tamil Nadu','Telangana','Tripura','Uttar Pradesh','Uttarakhand','West Bengal','Andaman and Nicobar Islands','Chandigarh','Dadra and Nagar Haveli and Daman and Diu','Delhi','Jammu and Kashmir','Ladakh','Lakshadweep','Puducherry'];
+function statesList(){return '<datalist id="states">'+STATES.map(function(s){return '<option value="'+s+'">';}).join('')+'</datalist>';}
+function afterAuth(r){S.token=r.token;S.me=r.me;localStorage.setItem('osoa-token',r.token);toast('Welcome, '+r.me.fullName.split(' ')[0]);go(S.ev?'#/e/'+S.ev:'#/');}
+function doLogin(b){$('err').textContent='';busy(b,1);call('api_login',{username:$('f_user').value,password:$('f_pass').value}).then(afterAuth).catch(function(e){busy(b,0);$('err').textContent=errMsg(e);});}
+function doSignup(b){$('err').textContent='';busy(b,1);call('api_signup',{fullName:$('f_name').value,username:$('f_user').value,mobile:$('f_mob').value,email:$('f_email').value,state:$('f_state').value,city:$('f_city').value,password:$('f_pass').value}).then(afterAuth).catch(function(e){busy(b,0);$('err').textContent=errMsg(e);});}
+var _resetUser='';
+function doForgot(b){$('err').textContent='';busy(b,1);
+  if(!_resetUser)call('api_forgotPassword',{email:$('f_email').value}).then(function(r){_resetUser=r.userId;busy(b,0,'Set new password');$('step2').classList.remove('hide');toast('Code sent to your email');}).catch(function(e){busy(b,0);$('err').textContent=errMsg(e);});
+  else call('api_resetPassword',{userId:_resetUser,code:$('f_code').value,password:$('f_pass').value}).then(function(r){_resetUser='';afterAuth(r);}).catch(function(e){busy(b,0);$('err').textContent=errMsg(e);});}
+
+/* ============ ACCOUNT ============ */
+function openAccount(){var m=S.me;if(!m)return;
+  sheet('Account','<div class="row" style="margin-bottom:12px">'+avatar(m,'lg')+'<div class="grow"><b style="font-size:17px">'+esc(m.fullName)+'</b><div class="mut">@'+esc(m.username)+(m.isSuper?' · Super admin':'')+'</div></div></div>'+
+  '<div class="card menu" style="padding:2px 14px">'+
+  '<div class="li" onclick="editProfile()">'+ic('user')+'<div class="grow">Edit profile</div></div>'+
+  '<div class="li" onclick="changePass()">'+ic('gear')+'<div class="grow">Change password</div></div>'+
+  '<div class="li" onclick="cycleTheme();openAccount()">'+ic(themeIcon())+'<div class="grow">Theme: '+({auto:'Auto',light:'Light',dark:'Dark'}[localStorage.getItem('osoa-theme')||'auto'])+'</div></div>'+
+  '<div class="li" onclick="showVersions()">'+ic('info')+'<div class="grow">App versions</div><span class="mut">v'+VERSIONS[0].v+'</span></div>'+
+  '<div class="li" onclick="doLogout()" style="color:var(--bad)">'+ic('out')+'<div class="grow">Logout</div></div></div>');}
+function doLogout(){call('api_logout',S.token).catch(function(){});logoutLocal();closeSheet();toast('Logged out');go('#/');}
+function showVersions(){sheet('App versions',VERSIONS.map(function(v){return '<div class="card"><div class="row"><b class="grow">v'+esc(v.v)+'</b><span class="mut">'+esc(v.d)+'</span></div><p class="sub" style="margin:6px 0 0">'+esc(v.t)+'</p></div>';}).join(''));}
+function editProfile(){var m=S.me;
+  sheet('Edit profile','<div class="row">'+avatar(m,'lg')+'<label class="btn sm" style="margin:0">Change photo<input type="file" accept="image/*" class="hide" id="p_photo" onchange="this.parentNode.firstChild.textContent=\'Photo selected\'"></label></div>'+
+  '<label>Full name</label><input id="p_name" value="'+esc(m.fullName)+'"><div class="two"><div><label>Mobile</label><input id="p_mob" inputmode="tel" value="'+esc(m.mobile)+'"></div><div><label>Email</label><input id="p_email" type="email" value="'+esc(m.email)+'"></div></div>'+
+  '<div class="two"><div><label>State</label><input id="p_state" list="states" value="'+esc(m.state)+'"></div><div><label>City</label><input id="p_city" value="'+esc(m.city)+'"></div></div>'+
+  '<label>Instagram</label><input id="p_ig" autocapitalize="none" placeholder="@yourhandle" value="'+esc(m.instagram)+'"><label>Short bio</label><textarea id="p_bio">'+esc(m.bio)+'</textarea>'+statesList()+
+  '<div class="err" id="err"></div><button class="btn p full" style="margin-top:14px" onclick="saveProfile(this)">Save</button>');}
+function saveProfile(b){busy(b,1);var f=$('p_photo').files[0];(f?readImg(f,500):Promise.resolve('')).then(function(ph){
+  return A('api_updateProfile',{fullName:$('p_name').value,mobile:$('p_mob').value,email:$('p_email').value,state:$('p_state').value,city:$('p_city').value,instagram:$('p_ig').value,bio:$('p_bio').value,photo:ph||undefined});
+}).then(function(me){S.me=me;closeSheet();toast('Profile saved');render();}).catch(function(e){busy(b,0);$('err').textContent=errMsg(e);});}
+function changePass(){sheet('Change password','<label>Current password</label><input id="c_old" type="password"><label>New password</label><input id="c_new" type="password"><div class="err" id="err"></div><button class="btn p full" style="margin-top:14px" onclick="doChangePass(this)">Change password</button>');}
+function doChangePass(b){busy(b,1);A('api_changePassword',{oldPassword:$('c_old').value,newPassword:$('c_new').value}).then(function(){closeSheet();toast('Password changed');}).catch(function(e){busy(b,0);$('err').textContent=errMsg(e);});}
+
+/* ============ EVENT ============ */
+function openEvent(id){
+  var first=S.ev!==id;S.ev=id;
+  if(first){S.tab='';S.data=null;S.pub=null;}
+  var e=S.events.filter(function(x){return x.eventId===id;})[0];
+  var p=e?prog(e.programId):{};
+  $('app').innerHTML=shell({title:p.deskName||'Event Desk',subtitle:e?e.name:'',color:p.color,logoId:p.logoId,short:p.short,tap:"go('#/')"})+'<main class="wrap" id="main">'+loading()+'</main><div id="tabs"></div>';
+  var pre=S.programs.length?Promise.resolve():loadInit();
+  pre.then(function(){
+    if(!S.token)return call('api_eventPublic',{eventId:id}).then(function(r){S.pub=r;S.data=null;drawGate();});
+    return Promise.all([A('api_eventData',{eventId:id}),call('api_eventPublic',{eventId:id})]).then(function(rs){S.data=rs[0];S.pub=rs[1];drawEvent();});
+  }).catch(function(err){$('main').innerHTML='<div class="empty">'+ic('info')+'<p>'+esc(errMsg(err))+'</p><button class="btn" onclick="go(\'#/\')">Back to events</button></div>';});
+}
+function refreshShell(){var e=(S.data||S.pub).event,p=(S.data||S.pub).program||prog(e.programId);
+  var top=document.querySelector('.top');if(top)top.outerHTML=shell({title:p.deskName,subtitle:e.name,color:p.color,logoId:p.logoId,short:p.short,tap:"go('#/')"});}
+function reloadEvent(){return A('api_eventData',{eventId:S.ev}).then(function(d){S.data=d;drawEvent();});}
+function useData(d){S.data=d;drawEvent();}
+
+/* gate: not logged in → guest or login */
+function drawGate(){refreshShell();var e=S.pub.event;
+  $('main').innerHTML=heroHtml(e)+'<div class="card" style="margin-top:14px;text-align:center"><h3>How do you want to continue?</h3><p class="sub" style="margin:4px 0 12px">Artists, volunteers and admins please login.</p>'+
+  '<div class="btns" style="justify-content:center"><button class="btn p" onclick="go(\'#/login/'+e.eventId+'\')">'+ic('user')+'Login</button><button class="btn" onclick="S.tab=\'guest\';drawGuest()">'+ic('eye')+'View as guest</button></div>'+
+  '<p class="mut" style="margin:12px 0 0">Want to register as an artist? <a href="#/login/'+e.eventId+'/signup">Create an account</a></p></div>';
+  $('tabs').innerHTML='';}
+
+function tabsFor(role){
+  if(role==='admin')return [['dash','chart','Dashboard'],['artists','palette','Artists'],['team','users','Team'],['tasks','list','Tasks'],['more','more','More']];
+  if(role==='volunteer')return [['vhome','home','Home'],['checkin','check','Check-in'],['artists','palette','Artists'],['tasks','list','Tasks'],['public','eye','Event']];
+  if(role==='artist')return [['ahome','home','My status'],['updates','bell','Updates'],['schedule','cal','Schedule'],['public','eye','Event']];
+  return [];
+}
+function drawEvent(){refreshShell();var d=S.data,role=d.role,t=tabsFor(role);
+  if(!role){$('tabs').innerHTML='';return drawGuest();}
+  if(!S.tab||!t.some(function(x){return x[0]===S.tab;}))S.tab=t[0][0];
+  $('tabs').innerHTML='<div class="tabs"><div class="in">'+t.map(function(x){return '<button class="tab '+(S.tab===x[0]?'on':'')+'" onclick="S.tab=\''+x[0]+'\';drawEvent();window.scrollTo(0,0)">'+ic(x[1])+x[2]+'</button>';}).join('')+'</div></div>';
+  var f={dash:drawDash,artists:drawArtists,team:drawTeam,tasks:drawTasks,more:drawMore,vhome:drawVHome,checkin:drawCheckin,ahome:drawAHome,updates:drawUpdates,schedule:drawScheduleTab,public:drawGuest}[S.tab];
+  f();
+}
+
+/* ---- guest / public page ---- */
+function heroHtml(e){var p=prog(e.programId);
+  return '<div class="hero" style="background:'+esc(p.color)+'">'+(e.coverId?'<img src="'+img(e.coverId)+'"><div class="sh"></div>':'<div class="sh"></div>')+'<div class="c"><span class="badge" style="background:rgba(255,255,255,.22);color:#fff">'+esc(p.name)+'</span><h1>'+esc(e.name)+'</h1><div style="opacity:.92">'+esc(fmtRange(e.startDate,e.endDate))+(e.time?' · '+esc(e.time):'')+(e.venue?' · '+esc(e.venue):'')+(e.city?', '+esc(e.city):'')+'</div></div></div>';}
+function countdown(e){var t=new Date(e.startDate+'T00:00:00')-Date.now();if(isNaN(t)||t<=0)return '';var d=Math.floor(t/864e5),h=Math.floor(t%864e5/36e5);
+  return '<div class="cd"><div><b>'+d+'</b><small>days</small></div><div><b>'+h+'</b><small>hours</small></div><div><b>'+(S.pub.gallery.length)+'</b><small>artists</small></div><div><b>'+(e.stateCount||0)+'</b><small>states</small></div></div>';}
+function drawGuest(){var e=S.pub.event,h=heroHtml(e)+countdown(e);
+  var my=S.data&&S.data.myRole, role=S.data&&S.data.role;
+  if(String(e.regOpen).toUpperCase()!=='FALSE' && (!role)){
+    h+='<div class="card" style="margin-top:14px"><div class="row"><div class="grow"><h3>Are you an artist?</h3><div class="mut">Register to take part in this event.</div></div><button class="btn p" onclick="'+(S.token?'artistForm()':'go(\'#/login/'+e.eventId+'/signup\')')+'">Register</button></div></div>';
+  }
+  if(e.about)h+='<h2>About</h2><div class="card" style="white-space:pre-wrap">'+esc(e.about)+'</div>';
+  if(S.pub.schedule.length)h+='<h2>Schedule</h2>'+scheduleHtml(S.pub.schedule,false);
+  h+='<h2>Artists</h2>'+(S.pub.gallery.length?'<div class="gal">'+S.pub.gallery.map(function(a,i){return '<div class="gi" onclick="galleryItem('+i+')"><div class="im">'+(a.artworks[0]?'<img loading="lazy" src="'+img(a.artworks[0])+'">':'')+'</div><div class="t"><b>'+esc(a.name)+'</b><span class="mut">'+esc(a.state||'')+(a.category?' · '+esc(a.category):'')+'</span></div></div>';}).join('')+'</div>':'<div class="empty">'+ic('palette')+'<p>Artists will appear here once approved.</p></div>');
+  var c='';
+  if(e.venue||e.mapUrl)c+='<div class="li">'+ic('map')+'<div class="grow"><b>'+esc(e.venue||'Venue')+'</b><span class="mut">'+esc([e.city,e.state].filter(Boolean).join(', '))+'</span></div>'+(e.mapUrl?'<a class="btn sm" target="_blank" rel="noopener" href="'+esc(e.mapUrl)+'">Map</a>':'')+'</div>';
+  if(e.contactPhone)c+='<div class="li">'+ic('phone')+'<div class="grow"><b>'+esc(e.contactName||'Contact')+'</b><span class="mut">'+esc(e.contactPhone)+'</span></div><a class="btn sm" href="tel:'+esc(e.contactPhone)+'">Call</a><a class="btn sm" target="_blank" rel="noopener" href="'+waLink(e.contactPhone,'Hello, I have a question about '+e.name)+'">WhatsApp</a></div>';
+  if(c)h+='<h2>Contact</h2><div class="card" style="padding:2px 14px">'+c+'</div>';
+  if(!S.token)h+='<div style="text-align:center;margin-top:20px"><button class="btn" onclick="go(\'#/login/'+e.eventId+'\')">'+ic('user')+'Login</button></div>';
+  $('main').innerHTML=h;}
+function galleryItem(i){var a=S.pub.gallery[i];
+  sheet(a.name,'<div class="row" style="margin-bottom:10px">'+avatar({photoId:a.photoId,name:a.name},'lg')+'<div class="grow"><b>'+esc(a.name)+'</b><div class="mut">'+esc([a.city,a.state].filter(Boolean).join(', '))+'</div>'+(a.category?'<span class="badge acc">'+esc(a.category)+'</span>':'')+'</div></div>'+
+  (a.artTitle?'<h3>'+esc(a.artTitle)+'</h3>':'')+(a.bio?'<p class="sub" style="white-space:pre-wrap">'+esc(a.bio)+'</p>':'')+
+  '<div class="gal">'+a.artworks.map(function(id){return '<div class="gi" onclick="viewImg(\''+id+'\')"><div class="im"><img src="'+img(id)+'"></div></div>';}).join('')+'</div>'+
+  (a.instagram?'<a class="btn full" style="margin-top:12px" target="_blank" rel="noopener" href="https://instagram.com/'+esc(String(a.instagram).replace(/^@/,''))+'">'+ic('ig')+esc(a.instagram)+'</a>':''));}
+function scheduleHtml(list,edit){if(!list.length)return '<div class="empty">'+ic('cal')+'<p>No schedule yet.</p></div>';var last='',h='';
+  list.forEach(function(s){if(s.day!==last){h+=(last!==''?'</div>':'')+'<div class="mut" style="margin:10px 0 6px;font-weight:700">'+esc(s.day?fmtDate(s.day):'Schedule')+'</div><div class="card" style="padding:2px 14px">';last=s.day;}
+    h+='<div class="li"><b style="min-width:70px;color:var(--acc)">'+esc(s.time||'')+'</b><div class="grow"><b>'+esc(s.title)+'</b>'+(s.detail?'<span class="mut">'+esc(s.detail)+'</span>':'')+'</div>'+(edit?'<button class="ib" onclick="delSchedule(\''+s.itemId+'\')">'+ic('trash')+'</button>':'')+'</div>';});
+  return h+'</div>';}
+
+/* ---- artist registration form (quick register with own account) ---- */
+var _keep=[],_new=[];
+function artistForm(){var m=S.me,r=S.data&&S.data.myRole;_keep=r?r.artworks.slice():[];_new=[];
+  sheet(r?'Edit registration':'Artist registration','<p class="sub" style="margin-top:0">Registering as <b>'+esc(m.fullName)+'</b> (@'+esc(m.username)+'). Your details are saved, so next time it is quick.</p>'+
+  '<div class="row">'+avatar(m,'lg')+'<label class="btn sm" style="margin:0">'+(m.photoId?'Change photo':'Add your photo')+'<input type="file" accept="image/*" class="hide" id="r_photo" onchange="this.parentNode.firstChild.textContent=\'Photo selected\'"></label></div>'+
+  '<div class="two"><div><label>State</label><input id="r_state" list="states" value="'+esc(m.state)+'"></div><div><label>City</label><input id="r_city" value="'+esc(m.city)+'"></div></div>'+
+  '<label>Art category</label><select id="r_cat"><option value="">Choose…</option>'+S.data.categories.map(function(c){return '<option '+((r?r.category:m.category)===c?'selected':'')+'>'+c+'</option>';}).join('')+'</select>'+
+  '<label>Artwork title (optional)</label><input id="r_title" value="'+esc(r?r.artTitle:'')+'">'+
+  '<label>Artwork photos (up to 3)</label><div class="thumbs" id="r_thumbs"></div><input type="file" accept="image/*" multiple class="hide" id="r_files" onchange="addArt(this)">'+
+  '<label>Short bio</label><textarea id="r_bio" placeholder="A few lines about you and your art">'+esc(r?r.bio||m.bio:m.bio)+'</textarea>'+
+  '<label>Instagram (optional)</label><input id="r_ig" autocapitalize="none" placeholder="@yourhandle" value="'+esc(m.instagram)+'">'+statesList()+
+  '<div class="err" id="err"></div><button class="btn p full" style="margin-top:14px" onclick="submitArtist(this)">'+(r?'Save changes':'Submit registration')+'</button>');
+  drawThumbs();}
+function drawThumbs(){var h=_keep.map(function(id,i){return '<div class="tw"><img src="'+img(id)+'"><button class="x" onclick="_keep.splice('+i+',1);drawThumbs()">×</button></div>';}).join('')+
+  _new.map(function(d,i){return '<div class="tw"><img src="'+d+'"><button class="x" onclick="_new.splice('+i+',1);drawThumbs()">×</button></div>';}).join('');
+  if(_keep.length+_new.length<3)h+='<div class="add" onclick="$(\'r_files\').click()">'+ic('plus')+'</div>';$('r_thumbs').innerHTML=h;}
+function addArt(inp){var fs=[].slice.call(inp.files,0,3-_keep.length-_new.length);Promise.all(fs.map(function(f){return readImg(f,1400);})).then(function(ds){_new=_new.concat(ds);drawThumbs();inp.value='';});}
+function submitArtist(b){busy(b,1);$('err').textContent='';var f=$('r_photo').files[0];
+  (f?readImg(f,500):Promise.resolve('')).then(function(ph){return A('api_registerArtist',{eventId:S.ev,state:$('r_state').value,city:$('r_city').value,category:$('r_cat').value,artTitle:$('r_title').value,bio:$('r_bio').value,instagram:$('r_ig').value,photo:ph||undefined,keepArtworks:_keep,artworks:_new});})
+  .then(function(d){closeSheet();toast('Registration submitted');S.tab='ahome';return A('api_me',{}).then(function(me){S.me=me;useData(d);});}).catch(function(e){busy(b,0);$('err').textContent=errMsg(e);});}
+
+/* ---- ARTIST views ---- */
+function drawAHome(){var r=S.data.myRole,e=S.data.event,h='';
+  var msg={pending:['warn','Your registration is under review. We will inform you on WhatsApp and email.'],approved:['ok','You are approved for this event. See you there!'],rejected:['bad','Your registration was not approved this time.']}[r.status]||['',''];
+  h+='<div class="card"><div class="row"><div class="grow"><div class="mut">Registration status</div><h2 style="margin:2px 0">'+statusBadge(r.status)+'</h2></div>'+(r.checkedIn?'<span class="badge ok">Checked in</span>':'')+'</div><p class="sub" style="margin:8px 0 0">'+msg[1]+'</p></div>';
+  h+='<div class="card"><div class="row"><h3 class="grow">My entry</h3><button class="btn sm" onclick="artistForm()">'+ic('edit')+'Edit</button></div><div class="mut">'+esc(r.category||'')+(r.artTitle?' · '+esc(r.artTitle):'')+'</div><div class="thumbs">'+r.artworks.map(function(id){return '<img src="'+img(id)+'" onclick="viewImg(\''+id+'\')">';}).join('')+'</div></div>';
+  h+='<div class="card"><h3>Event</h3><div class="mut">'+esc(fmtRange(e.startDate,e.endDate))+(e.time?' · '+esc(e.time):'')+'</div><div class="mut">'+esc([e.venue,e.city].filter(Boolean).join(', '))+'</div></div>';
+  var a=(S.data.announcements||[])[0];if(a)h+='<h2>Latest update</h2>'+annHtml(a,false);
+  $('main').innerHTML=h;}
+function annHtml(a,del){return '<div class="card"><div class="row"><b class="grow">'+esc(a.title)+'</b>'+(del?'<span class="badge">'+esc({all:'Everyone',volunteer:'Volunteers',artist:'Artists'}[a.audience]||a.audience)+'</span><button class="ib" onclick="delAnn(\''+a.annId+'\')">'+ic('trash')+'</button>':'')+'</div>'+(a.body?'<p class="sub" style="margin:6px 0 0;white-space:pre-wrap">'+esc(a.body)+'</p>':'')+'<div class="mut" style="margin-top:6px">'+ago(a.createdAt)+'</div></div>';}
+function drawUpdates(){var l=S.data.announcements||[];$('main').innerHTML='<h1>Updates</h1>'+(l.length?l.map(function(a){return annHtml(a,false);}).join(''):'<div class="empty">'+ic('bell')+'<p>No updates yet.</p></div>');}
+function drawScheduleTab(){$('main').innerHTML='<h1>Schedule</h1>'+scheduleHtml(S.data.schedule,false);}
+
+/* ---- VOLUNTEER views ---- */
+function drawVHome(){var d=S.data,h='<h1>Hi '+esc(S.me.fullName.split(' ')[0])+'</h1><p class="sub" style="margin:0 0 12px">You are a volunteer for this event.</p>';
+  var arts=d.artists||[],ci=arts.filter(function(a){return a.checkedIn;}).length,open=(d.tasks||[]).filter(function(t){return t.status!=='done';}).length;
+  h+='<div class="stats"><div class="stat"><small>Checked in</small><b>'+ci+' / '+arts.length+'</b></div><div class="stat"><small>My open tasks</small><b>'+open+'</b></div></div>';
+  h+='<h2>Updates</h2>'+((d.announcements||[]).length?d.announcements.slice(0,5).map(function(a){return annHtml(a,false);}).join(''):'<div class="mut">No updates yet.</div>');
+  if(d.schedule.length)h+='<h2>Schedule</h2>'+scheduleHtml(d.schedule,false);
+  $('main').innerHTML=h;}
+function drawCheckin(){var arts=(S.data.artists||[]).filter(function(a){return a.status==='approved';}),ci=arts.filter(function(a){return a.checkedIn;}).length;
+  $('main').innerHTML='<h1>Check-in</h1><p class="sub" style="margin:0 0 10px">'+ci+' of '+arts.length+' artists checked in</p><input id="q" placeholder="Search name, state or mobile" oninput="drawCheckList()"><div class="card" style="padding:2px 14px;margin-top:10px" id="clist"></div>';drawCheckList();}
+function drawCheckList(){var q=($('q').value||'').toLowerCase(),arts=(S.data.artists||[]).filter(function(a){return a.status==='approved'&&(!q||[a.name,a.state,a.city,a.mobile,a.username].join(' ').toLowerCase().indexOf(q)>=0);});
+  $('clist').innerHTML=arts.length?arts.map(function(a){return '<div class="li">'+avatar(a)+'<div class="grow"><b>'+esc(a.name)+'</b><span class="mut">'+esc(a.state||'')+(a.category?' · '+esc(a.category):'')+'</span></div><button class="chk '+(a.checkedIn?'on':'')+'" onclick="toggleCheck(\''+a.roleId+'\',this)" aria-label="Check in">'+ic('check')+'</button></div>';}).join(''):'<div class="empty">No approved artists found.</div>';}
+function toggleCheck(id,b){var a=S.data.artists.filter(function(x){return x.roleId===id;})[0];var v=!a.checkedIn;a.checkedIn=v;b.classList.toggle('on',v);
+  A('api_checkIn',{roleId:id,value:v}).then(function(){toast(v?a.name+' checked in':'Check-in undone');if(S.tab==='checkin'){var t=document.querySelector('#main .sub');var arts=S.data.artists.filter(function(x){return x.status==='approved';});if(t)t.textContent=arts.filter(function(x){return x.checkedIn;}).length+' of '+arts.length+' artists checked in';}})
+  .catch(function(e){a.checkedIn=!v;b.classList.toggle('on',!v);toast(errMsg(e));});}
+
+/* ---- ARTISTS list (admin + volunteer) ---- */
+function drawArtists(){var admin=S.data.role==='admin',f=S.sub.af||(admin?'pending':'approved'),all=S.data.artists||[];
+  var cnt=function(s){return all.filter(function(a){return s==='all'||a.status===s;}).length;};
+  var h='<h1>Artists</h1>';
+  if(admin)h+='<div class="seg" style="margin:8px 0 10px">'+[['pending','Pending'],['approved','Approved'],['rejected','Rejected'],['all','All']].map(function(x){return '<button class="'+(f===x[0]?'on':'')+'" onclick="S.sub.af=\''+x[0]+'\';drawArtists()">'+x[1]+' '+cnt(x[0])+'</button>';}).join('')+'</div>';
+  h+='<input id="aq" placeholder="Search name, state, category" oninput="drawArtistList()" value="'+esc(S.sub.aq||'')+'"><div id="alist" style="margin-top:10px"></div>';
+  $('main').innerHTML=h;drawArtistList();}
+function drawArtistList(){var admin=S.data.role==='admin',f=S.sub.af||(admin?'pending':'approved'),q=($('aq').value||'').toLowerCase();S.sub.aq=$('aq').value;
+  var l=(S.data.artists||[]).filter(function(a){return (f==='all'||a.status===f)&&(!q||[a.name,a.state,a.city,a.category,a.username].join(' ').toLowerCase().indexOf(q)>=0);});
+  $('alist').innerHTML=l.length?l.map(function(a){return '<div class="card" onclick="artistDetail(\''+a.roleId+'\')" style="cursor:pointer"><div class="row">'+avatar(a)+'<div class="grow"><b>'+esc(a.name)+'</b><div class="mut">'+esc([a.city,a.state].filter(Boolean).join(', '))+(a.category?' · '+esc(a.category):'')+'</div></div>'+statusBadge(a.status)+(a.checkedIn?' <span class="badge ok">In</span>':'')+'</div>'+
+    (a.artworks.length?'<div class="thumbs">'+a.artworks.map(function(id){return '<img loading="lazy" src="'+img(id)+'">';}).join('')+'</div>':'')+'</div>';}).join(''):'<div class="empty">'+ic('palette')+'<p>No artists here.</p></div>';}
+function artistDetail(id){var a=S.data.artists.filter(function(x){return x.roleId===id;})[0],admin=S.data.role==='admin',e=S.data.event;
+  var h='<div class="row" style="margin-bottom:10px">'+avatar(a,'lg')+'<div class="grow"><b style="font-size:17px">'+esc(a.name)+'</b><div class="mut">@'+esc(a.username)+' · '+esc([a.city,a.state].filter(Boolean).join(', '))+'</div><div style="margin-top:4px">'+statusBadge(a.status)+' '+(a.category?'<span class="badge acc">'+esc(a.category)+'</span>':'')+'</div></div></div>';
+  if(a.artTitle)h+='<h3>'+esc(a.artTitle)+'</h3>';if(a.bio)h+='<p class="sub" style="white-space:pre-wrap">'+esc(a.bio)+'</p>';
+  if(a.artworks.length)h+='<div class="gal" style="margin-bottom:12px">'+a.artworks.map(function(i){return '<div class="gi" onclick="viewImg(\''+i+'\')"><div class="im"><img src="'+img(i)+'"></div></div>';}).join('')+'</div>';
+  if(admin){h+='<div class="card" style="padding:2px 14px">'+(a.mobile?'<div class="li">'+ic('phone')+'<div class="grow">'+esc(a.mobile)+'</div><a class="btn sm" href="tel:'+esc(a.mobile)+'">Call</a></div>':'')+(a.email?'<div class="li">'+ic('doc')+'<div class="grow">'+esc(a.email)+'</div></div>':'')+(a.instagram?'<div class="li">'+ic('ig')+'<div class="grow">'+esc(a.instagram)+'</div></div>':'')+'</div>';
+    h+='<label>Note to artist (optional, sent in email)</label><input id="a_note" value="'+esc(a.note||'')+'">';
+    h+='<div class="btns" style="margin-top:12px">'+(a.status!=='approved'?'<button class="btn p" onclick="setStatus(\''+id+'\',\'approved\',this)">'+ic('check')+'Approve</button>':'')+(a.status!=='rejected'?'<button class="btn bad" onclick="setStatus(\''+id+'\',\'rejected\',this)">'+ic('x')+'Reject</button>':'')+(a.status!=='pending'?'<button class="btn" onclick="setStatus(\''+id+'\',\'pending\',this)">Move to pending</button>':'')+'</div>';
+    if(a.mobile&&a.status!=='pending')h+='<a class="btn ok full" style="margin-top:10px" target="_blank" rel="noopener" href="'+waLink(a.mobile,waMsg(a,e))+'">'+ic('wa')+'Send '+(a.status==='approved'?'approval':'update')+' on WhatsApp</a>';
+  }
+  if(a.status==='approved')h+='<button class="btn full" style="margin-top:10px" onclick="toggleCheck(\''+id+'\',this);closeSheet();setTimeout(drawEvent,300)">'+ic('check')+(a.checkedIn?'Undo check-in':'Check in now')+'</button>';
+  if(admin)h+='<button class="btn bad full" style="margin-top:10px" onclick="removeRole(\''+id+'\')">'+ic('trash')+'Remove from event</button>';
+  sheet('Artist',h);}
+function waMsg(a,e){var p=prog(e.programId);return a.status==='approved'
+  ?'Hello '+a.name+', congratulations! Your artist registration for "'+e.name+'" is approved. Date: '+fmtRange(e.startDate,e.endDate)+(e.venue?', Venue: '+e.venue:'')+'. — '+p.deskName
+  :'Hello '+a.name+', thank you for registering for "'+e.name+'". Unfortunately your registration was not approved this time. — '+p.deskName;}
+function setStatus(id,st,b){busy(b,1);A('api_setArtistStatus',{roleId:id,status:st,note:($('a_note')||{}).value||''}).then(function(r){toast('Marked '+st+(r.mailed?' · email sent':''));return reloadEvent();}).then(function(){artistDetail(id);}).catch(function(e){busy(b,0);toast(errMsg(e));});}
+function removeRole(id){if(!confirmBox('Remove this person from the event?'))return;A('api_removeRole',{roleId:id}).then(function(d){closeSheet();toast('Removed');useData(d);}).catch(function(e){toast(errMsg(e));});}
+
+/* ---- ADMIN: dashboard ---- */
+function drawDash(){var d=S.data,a=d.artists||[],ap=a.filter(function(x){return x.status==='approved';});
+  var st={};ap.forEach(function(x){if(x.state)st[x.state]=(st[x.state]||0)+1;});
+  var h='<h1>Dashboard</h1><p class="sub" style="margin:0 0 12px">'+esc(d.event.name)+' · '+statusBadge(d.event.status)+'</p><div class="stats">'+
+  [['Approved artists',ap.length],['Pending review',a.filter(function(x){return x.status==='pending';}).length],['Checked in',ap.filter(function(x){return x.checkedIn;}).length+' / '+ap.length],['States',Object.keys(st).length],['Volunteers',(d.team||[]).filter(function(x){return x.role==='volunteer';}).length],['Open tasks',(d.tasks||[]).filter(function(x){return x.status!=='done';}).length]]
+  .map(function(s){return '<div class="stat"><small>'+s[0]+'</small><b>'+s[1]+'</b></div>';}).join('')+'</div>';
+  var pend=a.filter(function(x){return x.status==='pending';}).length;
+  if(pend)h+='<div class="card" style="margin-top:12px;cursor:pointer" onclick="S.tab=\'artists\';S.sub.af=\'pending\';drawEvent()"><div class="row"><div class="grow"><b>'+pend+' artist'+(pend>1?'s':'')+' waiting for approval</b><div class="mut">Tap to review</div></div>'+ic('back').replace('<svg','<svg style="width:18px;transform:rotate(180deg)"')+'</div></div>';
+  var keys=Object.keys(st).sort(function(x,y){return st[y]-st[x];});
+  if(keys.length)h+='<h2>Artists by state</h2><div class="card" style="padding:2px 14px">'+keys.map(function(k){return '<div class="li"><div class="grow">'+esc(k)+'</div><b>'+st[k]+'</b></div>';}).join('')+'</div>';
+  h+='<h2>Recent activity</h2>'+((d.activity||[]).length?'<div class="card" style="padding:2px 14px">'+d.activity.slice(0,15).map(function(x){return '<div class="li"><div class="grow"><b style="font-weight:600">'+esc(x.action)+'</b><span class="mut">'+esc(x.detail)+' · '+esc(x.actorName)+'</span></div><span class="mut">'+ago(x.at)+'</span></div>';}).join('')+'</div>':'<div class="mut">No activity yet.</div>');
+  $('main').innerHTML=h;}
+
+/* ---- ADMIN: team ---- */
+function drawTeam(){var t=S.data.team||[];
+  var grp=function(r,title){var l=t.filter(function(x){return x.role===r;});return '<h2>'+title+' ('+l.length+')</h2>'+(l.length?'<div class="card" style="padding:2px 14px">'+l.map(function(x){return '<div class="li">'+avatar(x)+'<div class="grow"><b>'+esc(x.name)+'</b><span class="mut">@'+esc(x.username)+(x.mobile?' · '+esc(x.mobile):'')+'</span></div>'+(x.mobile?'<a class="ib" target="_blank" rel="noopener" href="'+waLink(x.mobile,'')+'" aria-label="WhatsApp">'+ic('wa')+'</a>':'')+'<button class="ib" onclick="removeRole(\''+x.roleId+'\')" aria-label="Remove">'+ic('trash')+'</button></div>';}).join('')+'</div>':'<div class="mut">None yet.</div>');};
+  $('main').innerHTML='<div class="row"><h1 class="grow">Team</h1><button class="btn p sm" onclick="addPerson()">'+ic('plus')+'Add person</button></div><p class="sub" style="margin:0">People sign up themselves, then you add them here with a role.</p>'+grp('admin','Event admins')+grp('volunteer','Volunteers');}
+function addPerson(){sheet('Add person','<label>Search by name, username or mobile</label><input id="u_q" oninput="clearTimeout(window._uq);window._uq=setTimeout(findUsers,350)" placeholder="Type at least 2 letters"><label>Role</label><select id="u_role"><option value="volunteer">Volunteer</option><option value="admin">Event admin</option><option value="artist">Artist (approved)</option></select><div id="u_res" style="margin-top:10px"></div><p class="mut">Not found? Ask them to create an account first.</p>');}
+function findUsers(){var q=$('u_q').value;if(q.length<2){$('u_res').innerHTML='';return;}$('u_res').innerHTML=loading();
+  A('api_findUsers',{eventId:S.ev,q:q}).then(function(l){$('u_res').innerHTML=l.length?'<div class="card" style="padding:2px 14px">'+l.map(function(u){return '<div class="li">'+avatar(u)+'<div class="grow"><b>'+esc(u.fullName)+'</b><span class="mut">@'+esc(u.username)+' · '+esc(u.mobile||'')+'</span></div><button class="btn sm p" onclick="setRole(\''+u.userId+'\',this)">Add</button></div>';}).join('')+'</div>':'<div class="mut">No account found.</div>';}).catch(function(e){$('u_res').innerHTML='<div class="err">'+esc(errMsg(e))+'</div>';});}
+function setRole(uid,b){busy(b,1);A('api_setRole',{eventId:S.ev,userId:uid,role:$('u_role').value}).then(function(d){closeSheet();toast('Added');useData(d);}).catch(function(e){busy(b,0);toast(errMsg(e));});}
+
+/* ---- TASKS ---- */
+function drawTasks(){var admin=S.data.role==='admin',l=(S.data.tasks||[]).slice().sort(function(a,b){return (a.status==='done')-(b.status==='done');});
+  var h='<div class="row"><h1 class="grow">Tasks</h1>'+(admin?'<button class="btn p sm" onclick="taskForm()">'+ic('plus')+'Add task</button>':'')+'</div>';
+  h+=l.length?'<div class="card" style="padding:2px 14px">'+l.map(function(t){var mine=!t.assignedTo||t.assignedTo===S.me.userId;return '<div class="li"><button class="chk '+(t.status==='done'?'on':'')+'" '+(admin||mine?'onclick="taskDone(\''+t.taskId+'\','+(t.status!=='done')+')"':'disabled')+'>'+ic('check')+'</button><div class="grow"'+(admin?' style="cursor:pointer" onclick="taskForm(\''+t.taskId+'\')"':'')+'><b style="'+(t.status==='done'?'text-decoration:line-through;opacity:.6':'')+'">'+esc(t.title)+'</b><span class="mut">'+esc(t.assignedName)+(t.due?' · due '+esc(fmtDate(t.due)):'')+(t.detail?' · '+esc(t.detail):'')+'</span></div></div>';}).join('')+'</div>':'<div class="empty">'+ic('list')+'<p>No tasks yet.</p></div>';
+  $('main').innerHTML=h;}
+function taskForm(id){var t=id?S.data.tasks.filter(function(x){return x.taskId===id;})[0]:{},vols=(S.data.team||[]).filter(function(x){return x.role!=='artist';});
+  sheet(id?'Edit task':'New task','<label>Task</label><input id="t_title" value="'+esc(t.title)+'"><label>Details</label><textarea id="t_detail">'+esc(t.detail)+'</textarea>'+
+  '<div class="two"><div><label>Assign to</label><select id="t_to"><option value="">Everyone</option>'+vols.map(function(v){return '<option value="'+v.userId+'" '+(t.assignedTo===v.userId?'selected':'')+'>'+esc(v.name)+'</option>';}).join('')+'</select></div><div><label>Due date</label><input id="t_due" type="date" value="'+esc(t.due)+'"></div></div>'+
+  '<div class="err" id="err"></div><button class="btn p full" style="margin-top:14px" onclick="saveTask(this,\''+(id||'')+'\')">Save</button>'+(id?'<button class="btn bad full" style="margin-top:8px" onclick="delTask(\''+id+'\')">Delete task</button>':''));}
+function saveTask(b,id){busy(b,1);A('api_saveTask',{eventId:S.ev,task:{taskId:id||undefined,title:$('t_title').value,detail:$('t_detail').value,assignedTo:$('t_to').value,due:$('t_due').value}}).then(function(d){closeSheet();toast('Task saved');useData(d);}).catch(function(e){busy(b,0);$('err').textContent=errMsg(e);});}
+function taskDone(id,v){A('api_setTaskDone',{taskId:id,done:v}).then(function(d){toast(v?'Done':'Reopened');useData(d);}).catch(function(e){toast(errMsg(e));});}
+function delTask(id){if(!confirmBox('Delete this task?'))return;A('api_deleteTask',{taskId:id}).then(function(d){closeSheet();useData(d);}).catch(function(e){toast(errMsg(e));});}
+
+/* ---- ADMIN: more ---- */
+function drawMore(){var sup=S.me.isSuper;
+  var it=[['bell','Announcements','annPage()'],['cal','Schedule','schedPage()'],['edit','Event settings','editEvent(S.data.event)'],['eye','Public page (guest view)','S.tab=\'public\';drawEvent()'],['doc','Export report to Google Doc','exportDoc(this)']];
+  if(sup)it.push(['palette','Programs (name, colour, logo)',"go('#/programs')"],['users','All people',"go('#/people')"]);
+  it.push(['switch','Switch event',"go('#/')"]);
+  $('main').innerHTML='<h1>More</h1><div class="card menu" style="padding:2px 14px">'+it.map(function(x){return '<div class="li" onclick="'+x[2]+'">'+ic(x[0])+'<div class="grow">'+x[1]+'</div></div>';}).join('')+'</div>';}
+function annPage(){var l=S.data.announcements||[];
+  sheet('Announcements','<div class="card"><label style="margin-top:0">Title</label><input id="n_title"><label>Message</label><textarea id="n_body"></textarea><label>Who should see it</label><select id="n_aud"><option value="all">Everyone (volunteers and artists)</option><option value="volunteer">Volunteers only</option><option value="artist">Artists only</option></select><div class="err" id="err"></div><button class="btn p full" style="margin-top:12px" onclick="postAnn(this)">Post</button></div>'+
+  (l.length?l.map(function(a){return annHtml(a,true);}).join(''):'<div class="mut">No announcements yet.</div>'));}
+function postAnn(b){busy(b,1);A('api_saveAnnouncement',{eventId:S.ev,ann:{title:$('n_title').value,body:$('n_body').value,audience:$('n_aud').value}}).then(function(d){S.data=d;toast('Posted');annPage();}).catch(function(e){busy(b,0);$('err').textContent=errMsg(e);});}
+function delAnn(id){if(!confirmBox('Delete this announcement?'))return;A('api_deleteAnnouncement',{annId:id}).then(function(d){S.data=d;annPage();}).catch(function(e){toast(errMsg(e));});}
+function schedPage(){var e=S.data.event;
+  sheet('Schedule','<div class="card"><div class="two"><div><label style="margin-top:0">Day</label><input id="s_day" type="date" value="'+esc(e.startDate)+'"></div><div><label style="margin-top:0">Time</label><input id="s_time" placeholder="10:00 AM"></div></div><label>Title</label><input id="s_title" placeholder="Opening ceremony"><label>Details (optional)</label><input id="s_detail"><div class="err" id="err"></div><button class="btn p full" style="margin-top:12px" onclick="addSchedule(this)">Add to schedule</button></div>'+scheduleHtml(S.data.schedule,true));}
+function addSchedule(b){busy(b,1);A('api_saveScheduleItem',{eventId:S.ev,item:{day:$('s_day').value,time:$('s_time').value,title:$('s_title').value,detail:$('s_detail').value}}).then(function(d){S.data=d;toast('Added');schedPage();}).catch(function(e){busy(b,0);$('err').textContent=errMsg(e);});}
+function delSchedule(id){A('api_deleteScheduleItem',{itemId:id}).then(function(d){S.data=d;schedPage();}).catch(function(e){toast(errMsg(e));});}
+function exportDoc(el){toast('Creating report…');A('api_exportEventDoc',{eventId:S.ev}).then(function(r){sheet('Report ready','<p class="sub">The report is saved in Drive: My Apps / OSOA Desk / 6. Reports.</p><a class="btn p full" target="_blank" rel="noopener" href="'+esc(r.url)+'">Open report</a>');}).catch(function(e){toast(errMsg(e));});}
+
+/* ---- event create / edit ---- */
+function editEvent(e){e=e||{};var isNew=!e.eventId;
+  sheet(isNew?'New event':'Event settings','<label>Program</label><select id="e_prog">'+S.programs.map(function(p){return '<option value="'+p.programId+'" '+(e.programId===p.programId?'selected':'')+'>'+esc(p.name)+'</option>';}).join('')+'</select>'+
+  '<label>Event name</label><input id="e_name" value="'+esc(e.name)+'" placeholder="OSOA 2026 — Raipur">'+
+  '<div class="two"><div><label>Start date</label><input id="e_start" type="date" value="'+esc(e.startDate)+'"></div><div><label>End date</label><input id="e_end" type="date" value="'+esc(e.endDate)+'"></div></div>'+
+  '<div class="two"><div><label>Time</label><input id="e_time" value="'+esc(e.time)+'" placeholder="10 AM – 6 PM"></div><div><label>Status</label><select id="e_status">'+['Upcoming','Live','Completed'].map(function(s){return '<option '+(e.status===s?'selected':'')+'>'+s+'</option>';}).join('')+'</select></div></div>'+
+  '<label>Venue</label><input id="e_venue" value="'+esc(e.venue)+'"><div class="two"><div><label>City</label><input id="e_city" value="'+esc(e.city)+'"></div><div><label>State</label><input id="e_state" list="states" value="'+esc(e.state)+'"></div></div>'+
+  '<label>Google Maps link</label><input id="e_map" value="'+esc(e.mapUrl)+'" placeholder="https://maps.app.goo.gl/…">'+
+  '<div class="two"><div><label>Contact name</label><input id="e_cname" value="'+esc(e.contactName)+'"></div><div><label>Contact phone</label><input id="e_cphone" inputmode="tel" value="'+esc(e.contactPhone)+'"></div></div>'+
+  '<label>About the event</label><textarea id="e_about">'+esc(e.about)+'</textarea>'+
+  '<label>Cover photo</label><input id="e_cover" type="file" accept="image/*">'+
+  '<label><input type="checkbox" id="e_pub" style="width:auto" '+(String(e.isPublic).toUpperCase()!=='FALSE'?'checked':'')+'> Show this event to guests</label>'+
+  '<label><input type="checkbox" id="e_reg" style="width:auto" '+(String(e.regOpen).toUpperCase()!=='FALSE'?'checked':'')+'> Artist registration open</label>'+statesList()+
+  '<div class="err" id="err"></div><button class="btn p full" style="margin-top:14px" onclick="saveEvent(this,\''+(e.eventId||'')+'\')">'+(isNew?'Create event':'Save')+'</button>'+
+  (!isNew&&S.me.isSuper?'<button class="btn bad full" style="margin-top:8px" onclick="deleteEvent(\''+e.eventId+'\')">Delete event</button>':''));}
+function saveEvent(b,id){busy(b,1);$('err').textContent='';var f=$('e_cover').files[0];
+  (f?readImg(f,1600):Promise.resolve('')).then(function(cv){return A('api_saveEvent',{event:{eventId:id||undefined,programId:$('e_prog').value,name:$('e_name').value,startDate:$('e_start').value,endDate:$('e_end').value,time:$('e_time').value,status:$('e_status').value,venue:$('e_venue').value,city:$('e_city').value,state:$('e_state').value,mapUrl:$('e_map').value,contactName:$('e_cname').value,contactPhone:$('e_cphone').value,about:$('e_about').value,isPublic:$('e_pub').checked,regOpen:$('e_reg').checked,cover:cv||undefined}});})
+  .then(function(r){closeSheet();toast(id?'Saved':'Event created');return loadInit().then(function(){if(id){openEvent(id);}else go('#/e/'+r.eventId);});}).catch(function(e){busy(b,0);$('err').textContent=errMsg(e);});}
+function deleteEvent(id){if(!confirmBox('Delete this event and all its data (artists, tasks, schedule)? This cannot be undone.'))return;A('api_deleteEvent',{eventId:id}).then(function(){closeSheet();toast('Event deleted');go('#/');}).catch(function(e){toast(errMsg(e));});}
+
+/* ============ SUPER ADMIN: programs + people ============ */
+function adminPage(title,body){setAccent('#D4A017');$('app').innerHTML=shell({title:title,subtitle:'Super admin',back:"go('#/')"})+'<main class="wrap" id="main">'+body+'</main>';}
+function renderPrograms(){adminPage('Programs',loading());(S.programs.length?Promise.resolve():loadInit()).then(drawPrograms);}
+function drawPrograms(){if(!S.me||!S.me.isSuper){$('main').innerHTML='<div class="empty">Only super admins can open this.</div>';return;}
+  $('main').innerHTML='<div class="row"><h1 class="grow">Programs</h1><button class="btn p sm" onclick="progForm()">'+ic('plus')+'Add</button></div><p class="sub" style="margin:0 0 12px">Each program has its own desk name, colour and logo.</p>'+
+  S.programs.map(function(p){return '<div class="card row" style="cursor:pointer" onclick="progForm(\''+p.programId+'\')"><div class="logo" style="background:'+esc(p.color)+'">'+(p.logoId?'<img src="'+img(p.logoId)+'">':esc(p.short.slice(0,5)))+'</div><div class="grow"><b>'+esc(p.deskName)+'</b><div class="mut">'+esc(p.name)+' · '+esc(p.color)+'</div></div>'+ic('edit').replace('<svg','<svg style="width:18px;color:var(--mut)"')+'</div>';}).join('');}
+var COLORS=['#D4A017','#7B4BD8','#F07A1A','#14A38B','#D7263D','#2F6FE4'];
+function progForm(id){var p=id?prog(id):{color:'#D4A017'};
+  sheet(id?'Edit program':'New program','<label>Program name</label><input id="g_name" value="'+esc(p.name)+'" placeholder="One State One Artist"><div class="two"><div><label>Short name</label><input id="g_short" value="'+esc(p.short)+'" placeholder="OSOA"></div><div><label>Desk name</label><input id="g_desk" value="'+esc(p.deskName)+'" placeholder="OSOA Desk"></div></div>'+
+  '<label>Colour</label><div class="btns" id="g_sw">'+COLORS.map(function(c){return '<div class="sw '+(p.color===c?'on':'')+'" style="background:'+c+'" onclick="$(\'g_color\').value=\''+c+'\';[].forEach.call($(\'g_sw\').children,function(x){x.classList.remove(\'on\')});this.classList.add(\'on\')"></div>';}).join('')+'</div><input id="g_color" value="'+esc(p.color)+'" style="margin-top:8px" placeholder="#D4A017">'+
+  '<label>Logo (PNG with transparent background works best)</label>'+(p.logoId?'<div class="row" style="margin-bottom:8px"><div class="logo" style="background:'+esc(p.color)+';width:56px;height:56px"><img src="'+img(p.logoId)+'"></div><label style="margin:0"><input type="checkbox" id="g_rm" style="width:auto"> Remove logo</label></div>':'')+'<input id="g_logo" type="file" accept="image/png,image/*">'+
+  '<div class="err" id="err"></div><button class="btn p full" style="margin-top:14px" onclick="saveProg(this,\''+(id||'')+'\')">Save</button>');}
+function saveProg(b,id){busy(b,1);var f=$('g_logo').files[0];
+  (f?readImg(f,512,'image/png'):Promise.resolve('')).then(function(lg){return A('api_saveProgram',{program:{programId:id||undefined,name:$('g_name').value,short:$('g_short').value,deskName:$('g_desk').value,color:$('g_color').value.trim(),logo:lg||undefined,removeLogo:$('g_rm')&&$('g_rm').checked}});})
+  .then(function(l){S.programs=l;closeSheet();toast('Saved');drawPrograms();}).catch(function(e){busy(b,0);$('err').textContent=errMsg(e);});}
+function renderPeople(){adminPage('People',loading());(S.me?Promise.resolve():loadInit()).then(function(){return A('api_allUsers',{});}).then(drawPeople).catch(function(e){$('main').innerHTML='<div class="empty">'+esc(errMsg(e))+'</div>';});}
+function drawPeople(l){window._people=l;$('main').innerHTML='<h1>People</h1><p class="sub" style="margin:0 0 10px">'+l.length+' accounts</p><input id="pq" placeholder="Search" oninput="drawPeopleList()"><div class="card" style="padding:2px 14px;margin-top:10px" id="plist"></div>';drawPeopleList();}
+function drawPeopleList(){var q=($('pq').value||'').toLowerCase(),l=window._people.filter(function(u){return !q||[u.fullName,u.username,u.mobile,u.email,u.state].join(' ').toLowerCase().indexOf(q)>=0;});
+  $('plist').innerHTML=l.map(function(u){return '<div class="li">'+avatar(u)+'<div class="grow"><b>'+esc(u.fullName)+(u.isSuper?' <span class="badge acc">Super admin</span>':'')+'</b><span class="mut">@'+esc(u.username)+(u.mobile?' · '+esc(u.mobile):'')+(u.state?' · '+esc(u.state):'')+'</span></div><button class="btn sm" onclick="toggleSuper(\''+u.userId+'\','+(!u.isSuper)+',this)">'+(u.isSuper?'Remove super':'Make super')+'</button></div>';}).join('')||'<div class="empty">No one found.</div>';}
+function toggleSuper(id,v,b){if(!confirmBox(v?'Give this person full access to all events?':'Remove super admin access?'))return;busy(b,1);A('api_setSuper',{userId:id,value:v}).then(function(l){window._people=l;drawPeopleList();toast('Updated');}).catch(function(e){busy(b,0);toast(errMsg(e));});}
+
+route();
+</script>
+</body>
+</html>
