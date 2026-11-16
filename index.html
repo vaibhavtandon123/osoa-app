@@ -13,7 +13,7 @@
 <link rel="icon" href="/icons/icon-192.png">
 <link rel="apple-touch-icon" href="/icons/icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{--acc:#D4A017;--acc-ink:#1a1405;--bg:#f5f3ee;--card:#ffffff;--card2:#f2efe8;--txt:#17171c;--sub:#5d5d66;--mut:#8b8b94;--line:rgba(20,16,8,.08);--sh:0 1px 2px rgba(20,16,8,.04),0 2px 8px rgba(20,16,8,.05);
   --ok:#1f9d55;--okbg:rgba(31,157,85,.12);--warn:#b7791f;--warnbg:rgba(214,158,46,.16);--bad:#d64545;--badbg:rgba(214,69,69,.12);--info:#2f6fe4;--infobg:rgba(47,111,228,.12);--r:14px;
@@ -21,7 +21,7 @@
 [data-theme=dark]{--sh:none;--bg:#0e0e10;--card:#17171a;--card2:#222226;--txt:#f3f3f5;--sub:#a8a8b2;--mut:#77777f;--line:rgba(255,255,255,.08);
   --okbg:rgba(31,157,85,.2);--warnbg:rgba(214,158,46,.2);--badbg:rgba(214,69,69,.2);--infobg:rgba(47,111,228,.22)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.5 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased;letter-spacing:-.005em}
+html,body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.5 'Plus Jakarta Sans',Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased;letter-spacing:0}
 button,input,select,textarea{font:inherit;color:inherit;letter-spacing:inherit}
 a{color:var(--acc)}
 .wrap{max-width:1200px;margin:0 auto;padding:0 16px}
@@ -260,6 +260,7 @@ textarea{min-height:84px;resize:vertical}
 <script>
 /* ===================== OSOA Desk — frontend ===================== */
 var VERSIONS=[
+  {v:'2.1.1',d:'16 Nov 2026',s:'Light theme by default, new font',t:'The app now opens in the light theme (dark is still one tap away). New font: Plus Jakarta Sans.'},
   {v:'2.1.0',d:'16 Nov 2026',s:'Badges, richer tasks, new dashboard design',t:'Badges next to names (automatic roles + badges admins can give, like Creative Mind or Hard Worker). Tasks now have statuses (To Do, In Progress, Partially Done, Needs Help, Can\'t Complete, Done), priority, due time, checklist, notes, photo/video/file attachments, a Board view and notifications. New dashboard with calendar, My Tasks and team panel. Lighter design. Aadhaar number auto-spacing; state and city required for everyone.'},
   {v:'2.0.0',d:'16 Nov 2026',s:'Login first, volunteer approvals, profiles, section access with timer, full Finance',t:'Login first, then choose event. Sign up as Volunteer (default) or Artist; volunteer form with Aadhaar and emergency details. Volunteer join requests approved by admin or team head (email to admins). Profiles with view levels (Aadhaar for admins only, logged). Section access (Artists, Finance, Tasks, People) with requests and timers. Full Finance: income incl. Adopt an Artist, expense requests → approve → paid, ₹25,000 admin limit, reimbursements, advances, vendors, cash/bank balances, reports and export. 2-step login for admins, daily backup, faster loading, new design, Contact developer.'},
   {v:'1.1.0',d:'15 Nov 2026',s:'Teams, Team Map, Budget, desktop layout',t:'Teams with department heads, Team Map, team tasks, event budget and expenses, desktop layout.'},
@@ -316,8 +317,8 @@ shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>',download:'<path 
 function ic(n){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'+(IC[n]||'')+'</svg>';}
 
 /* ---- theme ---- */
-function applyTheme(){var t=localStorage.getItem('osoa-theme')||'auto';var dark=t==='dark'||(t==='auto'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',dark?'dark':'light');}
-function cycleTheme(){var t=localStorage.getItem('osoa-theme')||'auto';var n={auto:'light',light:'dark',dark:'auto'}[t];localStorage.setItem('osoa-theme',n);applyTheme();toast('Theme: '+{auto:'Auto (phone setting)',light:'Light',dark:'Dark'}[n]);var b=document.querySelector('.top .themebtn');if(b)b.innerHTML=ic(themeIcon());}
+function applyTheme(){var t=localStorage.getItem('osoa-theme')||'light';var dark=t==='dark'||(t==='auto'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',dark?'dark':'light');}
+function cycleTheme(){var t=localStorage.getItem('osoa-theme')||'light';var n={light:'dark',dark:'auto',auto:'light'}[t];localStorage.setItem('osoa-theme',n);applyTheme();toast('Theme: '+{auto:'Auto (phone setting)',light:'Light',dark:'Dark'}[n]);var b=document.querySelector('.top .themebtn');if(b)b.innerHTML=ic(themeIcon());}
 function themeIcon(){return document.documentElement.getAttribute('data-theme')==='dark'?'moon':'sun';}
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',applyTheme);
 function setAccent(c){c=c||'#D4A017';document.documentElement.style.setProperty('--acc',c);var m=document.querySelector('meta[name=theme-color]');if(m)m.content=c;
@@ -467,7 +468,7 @@ function openAccount(){var m=S.me;if(!m)return;
   '<div class="card menu" style="padding:2px 14px">'+
   '<div class="li" onclick="go(\'#/profile\')">'+ic('user')+'<div class="grow">My profile</div></div>'+
   '<div class="li" onclick="changePass()">'+ic('lock')+'<div class="grow">Change password</div></div>'+
-  '<div class="li" onclick="cycleTheme();openAccount()">'+ic(themeIcon())+'<div class="grow">Theme: '+({auto:'Auto',light:'Light',dark:'Dark'}[localStorage.getItem('osoa-theme')||'auto'])+'</div></div>'+
+  '<div class="li" onclick="cycleTheme();openAccount()">'+ic(themeIcon())+'<div class="grow">Theme: '+({auto:'Auto',light:'Light',dark:'Dark'}[localStorage.getItem('osoa-theme')||'light'])+'</div></div>'+
   '<div class="li" onclick="go(\'#/\')">'+ic('switch')+'<div class="grow">Switch event</div></div>'+
   '<div class="li" onclick="contactDev()">'+ic('mail')+'<div class="grow">Contact developer</div></div>'+
   '<div class="li" onclick="showVersions()">'+ic('info')+'<div class="grow">Version '+APPV+' · What\'s new</div></div>'+
