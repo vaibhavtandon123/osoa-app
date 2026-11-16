@@ -13,7 +13,7 @@
 <link rel="icon" href="/icons/icon-192.png">
 <link rel="apple-touch-icon" href="/icons/icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--acc:#D4A017;--acc-ink:#1a1405;--bg:#f5f3ee;--card:#ffffff;--card2:#f2efe8;--txt:#17171c;--sub:#5d5d66;--mut:#8b8b94;--line:rgba(20,16,8,.08);--sh:0 1px 2px rgba(20,16,8,.04),0 2px 8px rgba(20,16,8,.05);
   --ok:#1f9d55;--okbg:rgba(31,157,85,.12);--warn:#b7791f;--warnbg:rgba(214,158,46,.16);--bad:#d64545;--badbg:rgba(214,69,69,.12);--info:#2f6fe4;--infobg:rgba(47,111,228,.12);--r:14px;
@@ -21,7 +21,7 @@
 [data-theme=dark]{--sh:none;--bg:#0e0e10;--card:#17171a;--card2:#222226;--txt:#f3f3f5;--sub:#a8a8b2;--mut:#77777f;--line:rgba(255,255,255,.08);
   --okbg:rgba(31,157,85,.2);--warnbg:rgba(214,158,46,.2);--badbg:rgba(214,69,69,.2);--infobg:rgba(47,111,228,.22)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.5 'Plus Jakarta Sans',Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased;letter-spacing:0}
+html,body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.5 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased;letter-spacing:0}
 button,input,select,textarea{font:inherit;color:inherit;letter-spacing:inherit}
 a{color:var(--acc)}
 .wrap{max-width:1200px;margin:0 auto;padding:0 16px}
@@ -30,7 +30,7 @@ a{color:var(--acc)}
 .logo{width:38px;height:38px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:10.5px;letter-spacing:.3px;flex:none;overflow:hidden}
 .logo img{width:100%;height:100%;object-fit:contain;padding:4px}
 .ttl{flex:1;min-width:0}
-.ttl b{display:block;font-size:16px;line-height:1.2;font-weight:700}
+.ttl b{display:block;font-size:16px;line-height:1.2;font-weight:600}
 .ttl small{display:block;color:var(--sub);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ttl.tap{cursor:pointer}
 .ib{width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:var(--card);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;color:var(--txt);text-decoration:none}
@@ -67,7 +67,7 @@ a{color:var(--acc)}
 .tc{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 14px;cursor:pointer;box-shadow:var(--sh);display:flex;flex-direction:column;gap:6px;transition:transform .12s,box-shadow .12s}
 .tc:hover{box-shadow:0 6px 20px rgba(0,0,0,.09)}.tc:active{transform:scale(.99)}
 .tc .tags{display:flex;flex-wrap:wrap;gap:4px}.tags{display:flex;flex-wrap:wrap;gap:5px}
-.tc .tt{font-size:15px;line-height:1.3}.tc .td{color:var(--sub);font-size:13px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tc .tt{font-size:16px;line-height:1.3;font-weight:500}.tc .td{color:var(--sub);font-size:13px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .tc .tf{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--sub);margin-top:2px}.tc .tf span{display:inline-flex;align-items:center;gap:3px}.tc .tf svg{width:13px;height:13px}
 .tc.hot{background:linear-gradient(135deg,var(--acc),color-mix(in srgb,var(--acc) 70%,#ff8a00));border-color:transparent;color:#fff}
 .tc.hot .td,.tc.hot .tf,.tc.hot .tf .red{color:rgba(255,255,255,.9)}.tc.hot .bdg{background:rgba(255,255,255,.22);color:#fff}.tc.hot .bar{background:rgba(255,255,255,.3)}.tc.hot .bar i{background:#fff}
@@ -86,9 +86,9 @@ input[type=range]{padding:0;border:0;box-shadow:none;accent-color:var(--acc)}
 .ib.bell{position:relative}.ib.bell .dot{position:absolute;top:-4px;right:-4px}
 .bdgchip{font-size:13px}
 main{padding:18px 0 calc(96px + var(--safe-b))}
-h1{font-size:25px;margin:4px 0 4px;line-height:1.25;font-weight:800;letter-spacing:-.02em}
-h2{font-size:17px;margin:24px 0 10px;font-weight:700;letter-spacing:-.01em}
-h3{font-size:15px;margin:0 0 4px;font-weight:700}
+h1{font-size:26px;margin:4px 0 4px;line-height:1.25;font-weight:600;letter-spacing:-.02em}
+h2{font-size:19px;margin:24px 0 10px;font-weight:500;letter-spacing:-.01em}
+h3{font-size:15.5px;margin:0 0 4px;font-weight:600}
 .sub{color:var(--sub)}.mut{color:var(--mut);font-size:13px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:var(--sh)}
 .row{display:flex;align-items:center;gap:12px}
@@ -123,8 +123,8 @@ h3{font-size:15px;margin:0 0 4px;font-weight:700}
 .ev .bd{padding:13px 15px 15px}
 .stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
 .stat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:var(--sh)}
-.stat small{color:var(--sub);font-size:12.5px;display:block;line-height:1.3}
-.stat b{font-size:22px;white-space:nowrap;font-weight:800;letter-spacing:-.02em}
+.stat small{color:var(--sub);font-size:14px;display:block;line-height:1.3;margin-top:2px}
+.stat b{font-size:24px;white-space:nowrap;font-weight:600;letter-spacing:-.02em}
 .stat.click{cursor:pointer}.stat.click:hover{border-color:var(--acc)}
 label{display:block;font-size:13px;font-weight:600;color:var(--sub);margin:12px 0 5px}
 input,select,textarea{width:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none;font-size:16px}
@@ -253,6 +253,8 @@ textarea{min-height:84px;resize:vertical}
 .sidefoot .v{font-size:12px;color:var(--mut);cursor:pointer}
 .sidefoot .v b{color:var(--sub);font-weight:700}
 @media print{.top,.tabs,.btn,.seg,.noprint{display:none!important}main{padding:0!important}body.side main{padding-left:0!important}.card{break-inside:avoid}}
+.hello{font-size:40px;font-weight:300;letter-spacing:-.03em;margin:0;line-height:1.15}.hello b{font-weight:600}@media(max-width:600px){.hello{font-size:30px}}
+.li .grow b{font-weight:500}.btn{font-weight:500}
 </style>
 </head>
 <body>
@@ -260,7 +262,8 @@ textarea{min-height:84px;resize:vertical}
 <script>
 /* ===================== OSOA Desk — frontend ===================== */
 var VERSIONS=[
-  {v:'2.1.1',d:'16 Nov 2026',s:'Light theme by default, new font',t:'The app now opens in the light theme (dark is still one tap away). New font: Plus Jakarta Sans.'},
+  {v:'2.1.2',d:'16 Nov 2026',s:'Cleaner, lighter typography',t:'Lighter, cleaner text style with a large "Hello, name" greeting.'},
+  {v:'2.1.1',d:'16 Nov 2026',s:'Light theme by default',t:'The app now opens in the light theme (dark is still one tap away).'},
   {v:'2.1.0',d:'16 Nov 2026',s:'Badges, richer tasks, new dashboard design',t:'Badges next to names (automatic roles + badges admins can give, like Creative Mind or Hard Worker). Tasks now have statuses (To Do, In Progress, Partially Done, Needs Help, Can\'t Complete, Done), priority, due time, checklist, notes, photo/video/file attachments, a Board view and notifications. New dashboard with calendar, My Tasks and team panel. Lighter design. Aadhaar number auto-spacing; state and city required for everyone.'},
   {v:'2.0.0',d:'16 Nov 2026',s:'Login first, volunteer approvals, profiles, section access with timer, full Finance',t:'Login first, then choose event. Sign up as Volunteer (default) or Artist; volunteer form with Aadhaar and emergency details. Volunteer join requests approved by admin or team head (email to admins). Profiles with view levels (Aadhaar for admins only, logged). Section access (Artists, Finance, Tasks, People) with requests and timers. Full Finance: income incl. Adopt an Artist, expense requests → approve → paid, ₹25,000 admin limit, reimbursements, advances, vendors, cash/bank balances, reports and export. 2-step login for admins, daily backup, faster loading, new design, Contact developer.'},
   {v:'1.1.0',d:'15 Nov 2026',s:'Teams, Team Map, Budget, desktop layout',t:'Teams with department heads, Team Map, team tasks, event budget and expenses, desktop layout.'},
@@ -631,7 +634,7 @@ function drawScheduleTab(){$('main').innerHTML='<h1>Schedule</h1>'+scheduleHtml(
 /* ---- VOLUNTEER home ---- */
 function myTeams(){var me=S.me.userId;return (S.data.teams||[]).filter(function(t){return t.headId===me||t.members.some(function(m){return m.userId===me;});});}
 function drawVHome(){var d=S.data,e=d.event,mt=myTeams(),mine=(d.tasks||[]).filter(isMine),open=mine.filter(function(t){return t.status!=='done'&&t.status!=='cant';}).length,done=mine.filter(function(t){return t.status==='done';}).length;
-  var main='<div class="row" style="flex-wrap:wrap;align-items:flex-end;margin-bottom:14px"><div class="grow"><h1 style="margin:0">'+greet()+', '+esc(S.me.fullName.split(' ')[0])+' 👋</h1><p class="sub" style="margin:2px 0 0">Let\'s make '+esc(e.name)+' a success!</p></div>'+bdgs(S.me.userId,4)+'</div>';
+  var main='<div class="row" style="flex-wrap:wrap;align-items:flex-end;margin-bottom:14px"><div class="grow"><h1 class="hello">Hello, <b>'+esc(S.me.fullName.split(' ')[0])+'</b></h1><p class="sub" style="margin:6px 0 0;font-size:16px">Let\'s make '+esc(e.name)+' a success!</p></div>'+bdgs(S.me.userId,4)+'</div>';
   main+='<div class="stats">'+statCard('Open tasks',open,'list','orange','tasks')+statCard('Completed',done,'check','green','tasks')+statCard('My team',esc(mt.map(function(t){return t.name;}).join(', ')||'—'),'sitemap','blue','teams')+
     (badgeCount(d)?statCard('Requests to review',badgeCount(d),'inbox','purple','requests'):'')+'</div>';
   main+='<div class="row" style="margin-top:22px"><h2 class="grow" style="margin:0">My Tasks</h2><a href="javascript:setTab(\'tasks\')" class="mut">View all</a></div><div style="margin-top:10px">'+ongoing(mine)+'</div>';
@@ -897,7 +900,7 @@ function drawDash(){var d=S.data,a=d.artists||[],ap=a.filter(function(x){return 
   var blk=(d.tasks||[]).filter(function(t){return t.status==='blocked';}).length;if(blk)acts.push(['tasks',blk+' task'+(blk>1?'s':'')+' need help','list','peach','Open']);
   var od=(d.tasks||[]).filter(overdue).length;if(od)acts.push(['tasks',od+' overdue task'+(od>1?'s':''),'clock','red','Open']);
   if(f){var over=f.heads.filter(function(x){return x.alloc>0&&x.spent>x.alloc;});over.forEach(function(x){acts.push(['finance',x.name+' is over budget by '+money(x.spent-x.alloc),'wallet','red','View']);});}
-  var main='<div class="row" style="flex-wrap:wrap;align-items:flex-end;margin-bottom:14px"><div class="grow"><h1 style="margin:0">'+greet()+', '+esc(S.me.fullName.split(' ')[0])+' 👋</h1><p class="sub" style="margin:2px 0 0">Here is what is happening at '+esc(e.name)+'.</p></div><button class="btn p sm" onclick="taskForm()">'+ic('plus')+'New Task</button></div>';
+  var main='<div class="row" style="flex-wrap:wrap;align-items:flex-end;margin-bottom:14px"><div class="grow"><h1 class="hello">Hello, <b>'+esc(S.me.fullName.split(' ')[0])+'</b></h1><p class="sub" style="margin:6px 0 0;font-size:16px">Let\'s get things done!</p></div><button class="btn p sm" onclick="taskForm()">'+ic('plus')+'New Task</button></div>';
   main+='<div class="stats">'+statCard('Approved artists',ap.length,'palette','purple','artists')+statCard('Checked in',ap.filter(function(x){return x.checkedIn;}).length+' / '+ap.length,'check','green','artists')+
     statCard('Volunteers',(d.people||[]).filter(function(x){return x.role==='volunteer';}).length,'users','blue','teams')+statCard('Open tasks',(d.tasks||[]).filter(function(x){return x.status!=='done'&&x.status!=='cant';}).length,'list','orange','tasks')+
     (f?statCard('Income',money(f.summary.income),'wallet','green','finance')+statCard('Balance',money(f.summary.cash+f.summary.bank),'chart','gold','finance'):'')+'</div>';
