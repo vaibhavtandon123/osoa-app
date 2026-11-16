@@ -1,5 +1,5 @@
 /*************************************************************
- * OSOA DESK  —  Code.gs  (backend)   v2.1.0
+ * OSOA DESK  —  Code.gs  (backend)   v2.3.0
  * Google Apps Script web app. Data in a Google Sheet.
  * Drive folder: My Apps / OSOA Desk / ...
  *
@@ -9,8 +9,8 @@
  *   (first time after this update Google asks for permission once — Allow)
  *************************************************************/
 
-var APP_VERSION = '2.1.0';
-var APP_NAME    = 'OSOA Desk';
+var APP_VERSION = '2.3.0';
+var APP_NAME    = 'OSOA Management Desk';
 
 /* ---- Super admin (no password stored here; set it via "Forgot password") ---- */
 var ADMIN_USERNAME = 'vaibhavtandon';
@@ -28,7 +28,7 @@ var SUB_DB='1. Database', SUB_ART='2. Artworks', SUB_PHOTOS='3. Profile Photos',
 var PUBLIC_IMAGE_FOLDERS=[SUB_ART,SUB_PHOTOS,SUB_LOGOS,SUB_COVERS,SUB_TASKS];
 var SS_NAME='OSOA Desk — Database';
 var TOKEN_DAYS=30, DEVICE_DAYS=30, BACKUP_KEEP=14;
-var SCHEMA_VERSION='6';
+var SCHEMA_VERSION='7';
 
 var DEFAULT_PROGRAMS=[
   {programId:'p-osoa', name:'One State One Artist', short:'OSOA', deskName:'OSOA Desk', color:'#D4A017'},
@@ -55,7 +55,7 @@ var BADGE_CATALOG=[
 /* ============================================================
  *  WEB ENTRY  (JSON API via the Cloudflare /api proxy)
  * ========================================================== */
-var READ_ONLY={api_publicInit:1,api_eventPublic:1,api_me:1,api_eventData:1,api_image:1,api_findUsers:1,api_allUsers:1,api_profile:1,api_privateFile:1,api_taskDetail:1};
+var READ_ONLY={api_publicInit:1,api_eventPublic:1,api_me:1,api_eventData:1,api_image:1,api_findUsers:1,api_allUsers:1,api_profile:1,api_privateFile:1,api_taskDetail:1,api_stageHistory:1,api_artistsDb:1};
 
 function doGet(){ return json_({ok:true,app:APP_NAME,version:APP_VERSION}); }
 function json_(o){ return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
@@ -87,13 +87,14 @@ var SCHEMA={
          'accountType','dob','address','bloodGroup','tshirt','skills','emName','emRelation','emMobile','aadhaarNumber','aadhaarFileId','consentAt','isDisabled','devicesJSON'],
   Sessions:['id','userId','tokenHash','exp','createdAt'],
   Programs:['programId','name','short','deskName','color','logoId','sort'],
-  Events:['eventId','programId','name','startDate','endDate','time','venue','city','state','mapUrl','contactName','contactPhone','about','coverId','status','isPublic','regOpen','createdBy','createdAt','budgetTotal','budgetJSON','approvalLimit'],
-  Roles:['roleId','eventId','userId','role','status','category','bio','artworkJSON','artTitle','checkedIn','checkedInAt','checkedInBy','note','createdAt','decidedBy','decidedAt','preferredTeamId'],
+  Events:['eventId','programId','name','startDate','endDate','time','venue','city','state','mapUrl','contactName','contactPhone','about','coverId','status','isPublic','regOpen','createdBy','createdAt','budgetTotal','budgetJSON','approvalLimit','selectionTeamId'],
+  Roles:['roleId','eventId','userId','role','status','category','bio','artworkJSON','artTitle','checkedIn','checkedInAt','checkedInBy','note','createdAt','decidedBy','decidedAt','preferredTeamId','stage','stagePending','stagePendingBy','stageAt','stageBy','interviewAt','interviewNotes','interviewScore','travelJSON','emailedStage','source','artworkLinks'],
+  StageLog:['id','eventId','roleId','userId','fromStage','toStage','byUser','verifiedBy','note','at'],
   Tasks:['taskId','eventId','title','detail','assignedTo','due','status','createdBy','createdAt','doneAt','teamId','priority','dueTime','progress','statusNote','checklistJSON','updatedAt','updatedBy'],
   TaskUpdates:['id','taskId','eventId','userId','kind','status','progress','text','filesJSON','at'],
   Badges:['id','eventId','userId','badgeKey','label','icon','tone','note','givenBy','at'],
   Notifications:['id','eventId','userId','text','taskId','isRead','at'],
-  Teams:['teamId','eventId','name','headId','sort','createdBy','createdAt'],
+  Teams:['teamId','eventId','name','headId','sort','createdBy','createdAt','requireVerify'],
   TeamMembers:['id','teamId','eventId','userId','addedBy','addedAt'],
   Announcements:['annId','eventId','title','body','audience','createdBy','createdAt'],
   Schedule:['itemId','eventId','day','time','title','detail'],
@@ -144,6 +145,7 @@ function ensureSheets_(ss){
   readAll_('Roles').forEach(function(r){ if(r.status==='active') updateWhere_('Roles','roleId',r.roleId,{status:'approved'}); });
   // legacy: expenses before v2 were already paid
   readAll_('Tasks').forEach(function(t){ if(t.status==='open'||!t.status) updateWhere_('Tasks','taskId',t.taskId,{status:'todo',priority:t.priority||'medium'}); });
+  readAll_('Roles').forEach(function(r){ if(r.role==='artist'&&!r.stage) updateWhere_('Roles','roleId',r.roleId,{stage:stageOf_(r),emailedStage:stageOf_(r),source:'app'}); });
   readAll_('Expenses').forEach(function(x){ if(!x.status) updateWhere_('Expenses','expId',x.expId,{status:'paid',kind:'expense',account:'bank',mode:'Bank',requestedBy:x.addedBy,paidAt:x.addedAt}); });
   ensureBackupTrigger_();
 }
@@ -424,6 +426,7 @@ function hasSection_(me,ev,sec){
   if(roleOf_(me,ev)==='admin') return true;
   if(roleOf_(me,ev)!=='volunteer') return false;
   if(sec==='finance' && inFinanceTeam_(me,ev)) return true;
+  if(sec==='artists' && inSelTeam_(me,ev)) return true;
   return activeGrants_(me,ev).some(function(g){return g.section===sec;});
 }
 function needSection_(me,ev,sec){ if(!hasSection_(me,ev,sec)) throw 'You do not have access to this section. Ask for permission.'; }
@@ -489,15 +492,19 @@ function api_eventData(p){
   roles.forEach(function(r){ if(r.role==='admin'&&r.status==='approved'){ var u=user_(r.userId); if(u) adm[u.userId]=u; } });
   out.admins=Object.keys(adm).map(function(k){var u=adm[k];var o=pubUser_(u);o.mobile=u.mobile;return o;});
   out.myHeadTeams=headTeamIds_(me,ev);
-  if(sec.artists) out.artists=roles.filter(function(r){return r.role==='artist' && (role==='admin'||r.status==='approved');}).map(function(r){return roleOut_(r,role==='admin');});
+  var cs=canSelect_(me,ev);
+  if(sec.artists) out.artists=roles.filter(function(r){return r.role==='artist' && (cs||r.status==='approved');}).map(function(r){return roleOut_(r,cs);});
+  if(sec.artists){ var st=selTeam_(ev);
+    out.selection={teamId:st?st.teamId:'',teamName:st?st.name:'',requireVerify:!!(st&&T_(st.requireVerify)),canMove:cs,canVerify:selHead_(me,ev),canEmail:cs,canSettings:role==='admin',
+      stages:STAGES,stageNames:STAGE_NAME,pendingEmails:cs?roles.filter(function(r){var s2=stageOf_(r);return r.role==='artist'&&s2!=='registered'&&!r.stagePending&&r.emailedStage!==s2;}).length:0}; }
   if(role==='admin'||role==='volunteer'){
     var tasks=readAll_('Tasks').filter(function(t){return t.eventId===ev;}), myT=myTeamIds_(me,ev);
     out.tasks=(sec.tasks?tasks:tasks.filter(function(t){return t.assignedTo===me.userId||(t.teamId&&myT.indexOf(t.teamId)>=0)||(!t.assignedTo&&!t.teamId);})).map(taskOut_);
   }
   if(sec.people || out.myHeadTeams.length) out.people=roles.filter(function(r){return r.role!=='artist' && r.status==='approved';}).map(function(r){return roleOut_(r,role==='admin');});
   var isHead=out.myHeadTeams.length>0, heads=out.myHeadTeams;
+  out.joinRequests=roles.filter(function(r){return r.role==='volunteer'&&r.status==='pending';}).map(function(r){var o=roleOut_(r,false); var t=r.preferredTeamId?find_('Teams','teamId',r.preferredTeamId):null; o.preferredTeam=t?t.name:''; o.preferredTeamId=r.preferredTeamId; o.note=r.note; return o;});
   if(role==='admin'||isHead){
-    out.joinRequests=roles.filter(function(r){return r.role==='volunteer'&&r.status==='pending';}).map(function(r){var o=roleOut_(r,false); var t=r.preferredTeamId?find_('Teams','teamId',r.preferredTeamId):null; o.preferredTeam=t?t.name:''; o.preferredTeamId=r.preferredTeamId; o.note=r.note; return o;});
     out.accessRequests=readAll_('AccessRequests').filter(function(r){return r.eventId===ev&&r.status==='pending'&&(role==='admin'||leads_(me,r.userId,ev));})
       .map(function(r){ var u=user_(r.userId)||{}; return {reqId:r.reqId,section:r.section,reason:r.reason,createdAt:r.createdAt,user:pubUser_(u)}; });
     out.grantsGiven=readAll_('SectionAccess').filter(function(g){ return g.eventId===ev && !g.revokedAt && (!g.expiresAt||new Date(g.expiresAt)>new Date()) && (role==='admin'||leads_(me,g.userId,ev)); })
@@ -520,7 +527,10 @@ function roleOut_(r,full){
   var o={roleId:r.roleId,userId:r.userId,role:r.role,status:r.status,category:r.category||u.category,bio:r.bio||u.bio,artTitle:r.artTitle,
     artworks:jp_(r.artworkJSON),checkedIn:T_(r.checkedIn),checkedInAt:r.checkedInAt,createdAt:r.createdAt,
     name:u.fullName,username:u.username,photoId:u.photoId,state:u.state,city:u.city,instagram:u.instagram};
-  if(full){ o.mobile=u.mobile; o.email=u.email; o.note=r.note; o.decidedAt=r.decidedAt; }
+  if(r.role==='artist'){ o.stage=stageOf_(r); o.stagePending=r.stagePending||''; var pb=r.stagePendingBy?user_(r.stagePendingBy):null; o.stagePendingName=pb?pb.fullName:'';
+    o.interviewScore=num_(r.interviewScore); o.source=r.source||'app'; o.emailed=r.emailedStage===o.stage; }
+  if(full){ o.mobile=u.mobile; o.email=u.email; o.note=r.note; o.decidedAt=r.decidedAt;
+    if(r.role==='artist'){ o.interviewAt=r.interviewAt; o.interviewNotes=r.interviewNotes; var tv=jp_(r.travelJSON); o.travel=Array.isArray(tv)?{}:tv; o.artworkLinks=r.artworkLinks||''; } }
   return o;
 }
 
@@ -569,11 +579,18 @@ function api_decideMember(p){
   var me=userByToken_(p.token), r=find_('Roles','roleId',p.roleId); if(!r) throw 'Not found.';
   var ev=r.eventId, role=roleOf_(me,ev), heads=headTeamIds_(me,ev);
   if(['pending','approved','rejected'].indexOf(p.status)<0) throw 'Bad status.';
-  if(r.role==='volunteer'){ if(!(role==='admin'||heads.length)) throw 'Only admins or team heads can approve volunteers.'; }
-  else if(r.role==='artist'){ needSection_(me,ev,'artists'); }
+  if(r.role==='volunteer'){
+    if(!(role==='admin'||heads.length)) throw 'Only admins or team leads can approve volunteers.';
+    if(role!=='admin'){
+      if(p.status==='approved' && heads.indexOf(p.teamId||'')<0 && heads.indexOf(r.preferredTeamId)<0) throw 'Choose your own team to add this volunteer to.';
+      if(p.status!=='approved' && heads.indexOf(r.preferredTeamId)<0) throw 'Only admins can reject volunteers who did not choose your team.';
+    }
+  }
+  else if(r.role==='artist'){ if(!canSelect_(me,ev)) throw 'Only the selection team or admins can decide on artists.'; }
   else need_(me,ev,['admin']);
   if(p.status==='rejected' && !String(p.note||'').trim()) throw 'Please give a reason for rejecting.';
-  updateWhere_('Roles','roleId',r.roleId,{status:p.status,note:p.note||'',decidedBy:me.userId,decidedAt:now_()});
+  if(r.role==='artist'){ applyStage_(r,{approved:'level2',rejected:'rejected',pending:'registered'}[p.status],me.userId,'',p.note); updateWhere_('Roles','roleId',r.roleId,{note:p.note||'',emailedStage:{approved:'level2',rejected:'rejected',pending:'registered'}[p.status]}); }
+  else updateWhere_('Roles','roleId',r.roleId,{status:p.status,note:p.note||'',decidedBy:me.userId,decidedAt:now_()});
   var u=user_(r.userId), e=find_('Events','eventId',ev), prog=find_('Programs','programId',e.programId)||{}, mailed=false;
   // a head approving a volunteer adds them to the head's team (or the team they asked for, if the head leads it)
   if(r.role==='volunteer' && p.status==='approved'){
@@ -606,8 +623,8 @@ function api_registerArtist(p){
   var prof={token:p.token,state:p.state,city:p.city,category:p.category,bio:p.bio,instagram:p.instagram}; if(p.photo) prof.photo=p.photo;
   api_updateProfile(prof);
   var row={category:p.category,bio:p.bio||'',artTitle:p.artTitle||'',artworkJSON:JSON.stringify(arts)};
-  if(ex){ row.status=(ex.status==='rejected')?'pending':ex.status; updateWhere_('Roles','roleId',ex.roleId,row); log_(e.eventId,me,'Artist updated registration','',me.userId); }
-  else{ row.roleId=uid_('r'); row.eventId=e.eventId; row.userId=me.userId; row.role='artist'; row.status='pending'; row.checkedIn='FALSE'; row.createdAt=now_();
+  if(ex){ row.status=(ex.status==='rejected')?'pending':ex.status; if(ex.status==='rejected'){ row.stage='registered'; } updateWhere_('Roles','roleId',ex.roleId,row); log_(e.eventId,me,'Artist updated registration','',me.userId); }
+  else{ row.roleId=uid_('r'); row.eventId=e.eventId; row.userId=me.userId; row.role='artist'; row.status='pending'; row.stage='registered'; row.source='app'; row.checkedIn='FALSE'; row.createdAt=now_();
     appendRow_('Roles',row); log_(e.eventId,me,'Artist registered',p.category,me.userId); }
   return api_eventData({token:p.token,eventId:e.eventId});
 }
@@ -878,6 +895,181 @@ function api_deleteTask(p){
   if(!canTask_(me,t.eventId,t.teamId)) throw 'You do not have access to this.';
   deleteWhere_('Tasks','taskId',t.taskId); log_(t.eventId,me,'Task deleted',t.title);
   return api_eventData({token:p.token,eventId:t.eventId});
+}
+
+
+/* ============================================================
+ *  ARTIST SELECTION (Registered → Level 1 → Interview → Level 2 → Level 3)
+ * ========================================================== */
+var STAGES=['registered','level1','interview','level2','level3','waitlist','rejected'];
+var STAGE_NAME={registered:'Registered',level1:'Level 1 – Shortlisted',interview:'Interview',level2:'Level 2 – Final',level3:'Level 3 – Confirmed',waitlist:'Waitlist',rejected:'Not selected'};
+function stageOf_(r){ if(r.stage) return r.stage; return r.status==='approved'?'level2':(r.status==='rejected'?'rejected':'registered'); }
+function statusFor_(st){ return (st==='level2'||st==='level3')?'approved':(st==='rejected'?'rejected':'pending'); }
+function selTeam_(ev){ var e=find_('Events','eventId',ev); return e&&e.selectionTeamId?find_('Teams','teamId',e.selectionTeamId):null; }
+function inSelTeam_(me,ev){ var t=selTeam_(ev); if(!t) return false; return t.headId===me.userId || readAll_('TeamMembers').some(function(m){return m.teamId===t.teamId&&m.userId===me.userId;}); }
+function canSelect_(me,ev){ return roleOf_(me,ev)==='admin' || (roleOf_(me,ev)==='volunteer' && inSelTeam_(me,ev)); }
+function selHead_(me,ev){ if(roleOf_(me,ev)==='admin') return true; var t=selTeam_(ev); return !!(t && t.headId===me.userId); }
+function applyStage_(r,to,byId,verifierId,note){
+  var from=stageOf_(r);
+  updateWhere_('Roles','roleId',r.roleId,{stage:to,status:statusFor_(to),stagePending:'',stagePendingBy:'',stageAt:now_(),stageBy:byId,decidedBy:verifierId||byId,decidedAt:now_()});
+  appendRow_('StageLog',{id:uid_('sl'),eventId:r.eventId,roleId:r.roleId,userId:r.userId,fromStage:from,toStage:to,byUser:byId,verifiedBy:verifierId||'',note:note||'',at:now_()});
+}
+function api_moveArtist(p){
+  var me=userByToken_(p.token), r=find_('Roles','roleId',p.roleId); if(!r||r.role!=='artist') throw 'Artist not found.';
+  if(!canSelect_(me,r.eventId)) throw 'Only the selection team or admins can move artists.';
+  if(STAGES.indexOf(p.stage)<0) throw 'Unknown stage.';
+  if(stageOf_(r)===p.stage && !r.stagePending) return api_eventData({token:p.token,eventId:r.eventId});
+  if(p.stage==='rejected' && !String(p.note||'').trim()) throw 'Please give a reason for not selecting.';
+  var t=selTeam_(r.eventId), u=user_(r.userId)||{};
+  if(!selHead_(me,r.eventId) && t && T_(t.requireVerify)){
+    updateWhere_('Roles','roleId',r.roleId,{stagePending:p.stage,stagePendingBy:me.userId,note:p.note||r.note||''});
+    if(t.headId) notify_(r.eventId,t.headId,me.fullName+' wants to move '+u.fullName+' to '+STAGE_NAME[p.stage]+'. Please verify.','');
+    log_(r.eventId,me,'Stage proposed',u.fullName+' → '+STAGE_NAME[p.stage],r.userId);
+  } else {
+    if(p.note) updateWhere_('Roles','roleId',r.roleId,{note:p.note});
+    applyStage_(r,p.stage,me.userId,'',p.note);
+    log_(r.eventId,me,'Artist moved',u.fullName+' → '+STAGE_NAME[p.stage],r.userId);
+  }
+  return api_eventData({token:p.token,eventId:r.eventId});
+}
+function api_verifyStage(p){
+  var me=userByToken_(p.token), r=find_('Roles','roleId',p.roleId); if(!r) throw 'Not found.';
+  if(!selHead_(me,r.eventId)) throw 'Only the selection team lead or admins can verify.';
+  if(!r.stagePending) throw 'Nothing to verify.';
+  var u=user_(r.userId)||{}, by=r.stagePendingBy, to=r.stagePending;
+  if(p.approve){ applyStage_(r,to,by,me.userId,r.note); log_(r.eventId,me,'Stage verified',u.fullName+' → '+STAGE_NAME[to],r.userId); }
+  else { updateWhere_('Roles','roleId',r.roleId,{stagePending:'',stagePendingBy:''}); log_(r.eventId,me,'Stage change refused',u.fullName+' → '+STAGE_NAME[to],r.userId); }
+  if(by && by!==me.userId) notify_(r.eventId,by,me.fullName+(p.approve?' verified':' refused')+' moving '+u.fullName+' to '+STAGE_NAME[to]+'.','');
+  return api_eventData({token:p.token,eventId:r.eventId});
+}
+function api_saveInterview(p){
+  var me=userByToken_(p.token), r=find_('Roles','roleId',p.roleId); if(!r) throw 'Not found.';
+  if(!canSelect_(me,r.eventId)) throw 'Only the selection team or admins can do this.';
+  var sc=num_(p.score); if(sc<0||sc>5) throw 'Score must be 0 to 5.';
+  updateWhere_('Roles','roleId',r.roleId,{interviewAt:p.interviewAt||'',interviewNotes:p.notes||'',interviewScore:sc?String(sc):''});
+  var u=user_(r.userId)||{}; log_(r.eventId,me,'Interview saved',u.fullName+(sc?' — score '+sc+'/5':''),r.userId);
+  return api_eventData({token:p.token,eventId:r.eventId});
+}
+function api_saveTravel(p){
+  var me=userByToken_(p.token), r=find_('Roles','roleId',p.roleId); if(!r) throw 'Not found.';
+  if(!canSelect_(me,r.eventId)) throw 'Only the selection team or admins can do this.';
+  var old=jp_(r.travelJSON); if(Array.isArray(old)) old={};
+  var t=p.travel||{}, keep=['mode','number','pnr','from','arriveAt','departAt','stay','room','pickupAt','pickupBy','note'], o={};
+  keep.forEach(function(k){ o[k]=String(t[k]||'').trim(); });
+  o.ticketId=old.ticketId||''; o.ticketName=old.ticketName||'';
+  if(t.ticket&&t.ticket.data){ var f=saveFiles_([t.ticket],'ticket-'+r.roleId)[0]; o.ticketId=f.id; o.ticketName=f.name; }
+  if(t.removeTicket){ o.ticketId=''; o.ticketName=''; }
+  updateWhere_('Roles','roleId',r.roleId,{travelJSON:JSON.stringify(o)});
+  var u=user_(r.userId)||{}; log_(r.eventId,me,'Travel & stay saved',u.fullName,r.userId);
+  return api_eventData({token:p.token,eventId:r.eventId});
+}
+function api_stageHistory(p){
+  var me=userByToken_(p.token), r=find_('Roles','roleId',p.roleId); if(!r) throw 'Not found.';
+  if(!canSelect_(me,r.eventId) && !hasSection_(me,r.eventId,'artists')) throw 'You do not have access to this.';
+  return readAll_('StageLog').filter(function(x){return x.roleId===r.roleId;}).map(function(x){ var b=user_(x.byUser)||{}, v=x.verifiedBy?user_(x.verifiedBy):null;
+    return {from:x.fromStage,to:x.toStage,by:b.fullName||'',verifiedBy:v?v.fullName:'',note:x.note,at:x.at}; }).reverse();
+}
+function api_selectionSettings(p){
+  var me=userByToken_(p.token); need_(me,p.eventId,['admin']);
+  if(p.selectionTeamId && !find_('Teams','teamId',p.selectionTeamId)) throw 'Team not found.';
+  updateWhere_('Events','eventId',p.eventId,{selectionTeamId:p.selectionTeamId||''});
+  var t=p.selectionTeamId?find_('Teams','teamId',p.selectionTeamId):null;
+  log_(p.eventId,me,'Selection team set',t?t.name:'None');
+  return api_eventData({token:p.token,eventId:p.eventId});
+}
+function api_setTeamVerify(p){
+  var me=userByToken_(p.token), t=find_('Teams','teamId',p.teamId); if(!t) throw 'Team not found.';
+  if(roleOf_(me,t.eventId)!=='admin' && t.headId!==me.userId) throw 'Only the team lead or admins can change this.';
+  updateWhere_('Teams','teamId',t.teamId,{requireVerify:p.value?'TRUE':'FALSE'});
+  log_(t.eventId,me,p.value?'Lead verification turned on':'Lead verification turned off',t.name);
+  return api_eventData({token:p.token,eventId:t.eventId});
+}
+function stageMail_(r,u,e,prog){
+  var st=stageOf_(r), name=(prog.name||APP_NAME), col=prog.color||'#D4A017', tr=jp_(r.travelJSON); if(Array.isArray(tr)) tr={};
+  var T={level1:['You are shortlisted! 🎉','Congratulations! After reviewing your artwork, you have been shortlisted (Level 1) for '+e.name+'. Our team will contact you about the next step.'],
+    interview:['Interview for '+e.name,'You have been invited for an interview for '+e.name+'.'+(r.interviewAt?' Date & time: '+String(r.interviewAt).replace('T',' ')+'.':' We will share the time with you soon.')],
+    level2:['You are selected for '+e.name+' 🎨','We are happy to tell you that you have been selected in the final list (Level 2) for '+e.name+'. Please keep your dates free: '+e.startDate+(e.endDate&&e.endDate!==e.startDate?' to '+e.endDate:'')+'.'],
+    level3:['Your participation is confirmed ✅','Your participation in '+e.name+' is confirmed (Level 3).'+(tr.mode||tr.number?' Travel: '+[tr.mode,tr.number,tr.pnr?'PNR '+tr.pnr:'',tr.arriveAt?'arriving '+String(tr.arriveAt).replace('T',' '):''].filter(Boolean).join(', ')+'.':'')+(tr.stay?' Stay: '+tr.stay+(tr.room?', room '+tr.room:'')+'.':'')+(tr.pickupAt?' Pickup: '+String(tr.pickupAt).replace('T',' ')+(tr.pickupBy?' by '+tr.pickupBy:'')+'.':'')],
+    waitlist:['You are on the waitlist','Thank you for applying to '+e.name+'. You are on our waitlist — we will inform you if a place opens up.'],
+    rejected:['Update on your application','Thank you for applying to '+e.name+'. We received many wonderful entries and unfortunately we cannot include yours this time. We hope to see you in a future edition.']}[st];
+  if(!T) return null;
+  var text='Hello '+u.fullName+',\n\n'+T[1]+'\n\nEvent: '+e.name+'\nDate: '+e.startDate+(e.venue?'\nVenue: '+e.venue+(e.city?', '+e.city:''):'')+'\n\n— Team '+name;
+  var html='<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;border:1px solid #eee;border-radius:14px;overflow:hidden">'+
+    '<div style="background:'+col+';color:#fff;padding:22px 24px"><div style="font-size:12px;letter-spacing:2px;opacity:.9">'+String(name).toUpperCase()+'</div><div style="font-size:22px;font-weight:bold;margin-top:6px">'+T[0]+'</div></div>'+
+    '<div style="padding:22px 24px;color:#222;font-size:15px;line-height:1.6">Hello <b>'+u.fullName+'</b>,<br><br>'+T[1]+'<br><br><table style="font-size:14px;color:#555"><tr><td style="padding-right:12px">Event</td><td><b>'+e.name+'</b></td></tr><tr><td>Date</td><td>'+e.startDate+(e.endDate&&e.endDate!==e.startDate?' – '+e.endDate:'')+'</td></tr>'+(e.venue?'<tr><td>Venue</td><td>'+e.venue+(e.city?', '+e.city:'')+'</td></tr>':'')+'</table><br>— Team '+name+'</div></div>';
+  return {subject:name+' — '+T[0],text:text,html:html};
+}
+function api_sendStageEmails(p){
+  var me=userByToken_(p.token), e=find_('Events','eventId',p.eventId); if(!e) throw 'Event not found.';
+  if(!canSelect_(me,e.eventId)) throw 'Only the selection team or admins can send emails.';
+  var prog=find_('Programs','programId',e.programId)||{}, quota=100; try{ quota=MailApp.getRemainingDailyQuota(); }catch(x){}
+  var todo=rolesOf_(e.eventId).filter(function(r){ var st=stageOf_(r); return r.role==='artist' && st!=='registered' && !r.stagePending && r.emailedStage!==st; });
+  var sent=0, failed=0, noEmail=0;
+  todo.forEach(function(r){
+    if(sent>=quota-2) return; var u=user_(r.userId); if(!u||!u.email){ noEmail++; return; }
+    var m=stageMail_(r,u,e,prog); if(!m) return;
+    try{ MailApp.sendEmail(u.email,m.subject,m.text,{htmlBody:m.html,name:prog.name||APP_NAME}); updateWhere_('Roles','roleId',r.roleId,{emailedStage:stageOf_(r)}); sent++; }catch(x){ failed++; }
+  });
+  log_(e.eventId,me,'Selection emails sent',sent+' sent'+(failed?', '+failed+' failed':''));
+  return {sent:sent,failed:failed,noEmail:noEmail,left:Math.max(0,todo.length-sent-failed-noEmail),data:api_eventData({token:p.token,eventId:e.eventId})};
+}
+function api_importArtists(p){
+  var me=userByToken_(p.token), e=find_('Events','eventId',p.eventId); if(!e) throw 'Event not found.';
+  if(!canSelect_(me,e.eventId)) throw 'Only the selection team or admins can import.';
+  var rows=(p.rows||[]).slice(0,200), added=0, existing=0, skipped=0;
+  rows.forEach(function(x){
+    var name=String(x.name||'').trim(), email=String(x.email||'').trim().toLowerCase(), mob=digits_(x.mobile).slice(-10);
+    if(!name||(!email&&mob.length<10)){ skipped++; return; }
+    var u=readAll_('Users').filter(function(k){ return (email&&String(k.email).toLowerCase()===email) || (mob.length===10&&digits_(k.mobile)===mob); })[0];
+    if(!u){
+      var base=name.toLowerCase().replace(/[^a-z0-9]+/g,'.').replace(/^\.|\.$/g,'').slice(0,20)||'artist', un=base, i=1;
+      var taken=readAll_('Users').map(function(k){return String(k.username).toLowerCase();});
+      while(taken.indexOf(un)>=0){ un=base+(++i); }
+      var salt=Utilities.getUuid(); u={userId:uid_('u'),fullName:name,username:un,passHash:hash_(Utilities.getUuid(),salt),salt:salt,email:email,mobile:mob,state:x.state||'',city:x.city||'',
+        category:x.category||'',instagram:x.instagram||'',bio:x.bio||'',accountType:'artist',createdAt:now_()};
+      appendRow_('Users',u);
+    }
+    if(myRoleRow_(u,e.eventId)){ existing++; return; }
+    appendRow_('Roles',{roleId:uid_('r'),eventId:e.eventId,userId:u.userId,role:'artist',status:'pending',stage:'registered',category:x.category||u.category||'',bio:x.bio||'',artTitle:x.artTitle||'',
+      artworkJSON:'[]',artworkLinks:String(x.links||'').slice(0,2000),source:'import',checkedIn:'FALSE',createdAt:now_()});
+    added++;
+  });
+  log_(e.eventId,me,'Artists imported',added+' added, '+existing+' already there'+(skipped?', '+skipped+' skipped':''));
+  return {added:added,existing:existing,skipped:skipped,data:api_eventData({token:p.token,eventId:e.eventId})};
+}
+
+/* ---- Artists Database (all years) ---- */
+function canArtistDb_(me){
+  if(isSuper_(me)) return 'edit';
+  var rs=readAll_('Roles').filter(function(r){return r.userId===me.userId&&r.status==='approved';});
+  if(rs.some(function(r){return r.role==='admin';})) return 'edit';
+  if(rs.some(function(r){return inSelTeam_(me,r.eventId);})) return 'view';
+  return '';
+}
+function api_artistsDb(p){
+  var me=userByToken_(p.token), lv=canArtistDb_(me); if(!lv) throw 'Only admins and the selection team can open the Artists Database.';
+  var evs={}; readAll_('Events').forEach(function(e){evs[e.eventId]=e;});
+  var byUser={}; readAll_('Roles').forEach(function(r){ if(r.role!=='artist') return; (byUser[r.userId]=byUser[r.userId]||[]).push(r); });
+  var list=readAll_('Users').filter(function(u){return u.accountType==='artist'||byUser[u.userId];}).map(function(u){
+    var rs=(byUser[u.userId]||[]).sort(function(a,b){return String(b.createdAt).localeCompare(String(a.createdAt));});
+    var o=pubUser_(u); o.mobile=u.mobile; o.email=u.email; o.bio=u.bio; o.createdAt=u.createdAt;
+    o.events=rs.map(function(r){ var e=evs[r.eventId]||{}; return {eventId:r.eventId,eventName:e.name||'',year:String(e.startDate||r.createdAt||'').slice(0,4),stage:stageOf_(r),category:r.category,artTitle:r.artTitle,source:r.source||'app'}; });
+    var art=[]; rs.forEach(function(r){ art=art.concat(jp_(r.artworkJSON)); }); o.artworks=art.slice(0,6);
+    o.links=rs.map(function(r){return r.artworkLinks;}).filter(Boolean).join('\n');
+    return o; }).sort(function(a,b){return String(a.fullName).localeCompare(String(b.fullName));});
+  return {canEdit:lv==='edit',artists:list,stageNames:STAGE_NAME};
+}
+function api_editArtist(p){
+  var me=userByToken_(p.token), u=user_(p.userId); if(!u) throw 'Artist not found.';
+  if(canArtistDb_(me)!=='edit') throw 'Only admins and the developer can edit artist profiles.';
+  var f=p.fields||{}, patch={};
+  ['fullName','state','city','category','instagram','bio'].forEach(function(k){ if(f[k]!==undefined) patch[k]=String(f[k]).trim(); });
+  if(f.email!==undefined){ var em=String(f.email).trim(); if(em&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) throw 'Please enter a valid email.'; patch.email=em; }
+  if(f.mobile!==undefined){ var mb=digits_(f.mobile); if(mb&&mb.length<10) throw 'Please enter a valid 10-digit mobile number.'; patch.mobile=mb; }
+  if(!patch.fullName&&f.fullName!==undefined) throw 'Name cannot be empty.';
+  if(p.photo) patch.photoId=saveFile_(SUB_PHOTOS,p.photo,'profile-'+u.userId+'.jpg');
+  updateWhere_('Users','userId',u.userId,patch); log_('',me,'Artist profile edited',u.fullName,u.userId);
+  return api_artistsDb({token:p.token});
 }
 
 /* ---- Notifications ---- */

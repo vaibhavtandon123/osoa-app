@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--acc:#D4A017;--acc-ink:#1a1405;--bg:#f5f3ee;--card:#ffffff;--card2:#f2efe8;--txt:#17171c;--sub:#5d5d66;--mut:#8b8b94;--line:rgba(20,16,8,.08);--sh:0 1px 2px rgba(20,16,8,.04),0 2px 8px rgba(20,16,8,.05);
+:root{--acc:#D4A017;--acc-ink:#1a1405;--bg:#ffffff;--card:#ffffff;--card2:#f4f4f5;--txt:#17171c;--sub:#5d5d66;--mut:#8b8b94;--line:#e8e8ec;--sh:0 1px 2px rgba(16,24,40,.03);
   --ok:#1f9d55;--okbg:rgba(31,157,85,.12);--warn:#b7791f;--warnbg:rgba(214,158,46,.16);--bad:#d64545;--badbg:rgba(214,69,69,.12);--info:#2f6fe4;--infobg:rgba(47,111,228,.12);--r:14px;
   --safe-b:env(safe-area-inset-bottom,0px);--safe-t:env(safe-area-inset-top,0px)}
 [data-theme=dark]{--sh:none;--bg:#0e0e10;--card:#17171a;--card2:#222226;--txt:#f3f3f5;--sub:#a8a8b2;--mut:#77777f;--line:rgba(255,255,255,.08);
@@ -237,8 +237,8 @@ textarea{min-height:84px;resize:vertical}
   body.side .tabs{top:0;bottom:0;left:0;right:auto;width:236px;border-top:0;border-right:1px solid var(--line);padding:calc(78px + var(--safe-t)) 10px 0;background:var(--bg);display:flex;flex-direction:column}
   body.side .tabs .in{flex-direction:column;max-width:none;gap:2px;margin:0}
   body.side .tab{flex:none;flex-direction:row;gap:12px;font-size:14.5px;padding:10px 14px;border-radius:12px;justify-content:flex-start;color:var(--sub)}
-  body.side .tab.on{background:color-mix(in srgb,var(--acc) 16%,transparent);color:var(--txt)}
-  body.side .tab.on svg{color:var(--acc)}
+  body.side .tab.on{background:var(--card2);color:var(--txt);font-weight:600}
+  body.side .tab.on svg{color:var(--txt)}
   body.side .tab svg{width:20px;height:20px}
   body.side .tab .dot{position:static;margin-left:auto}
   body.side .tab.desk{display:flex}body.side .tab.phone{display:none}
@@ -297,6 +297,13 @@ textarea{min-height:84px;resize:vertical}
 .tc.pr-urgent .av,.tc.pr-high .av,.tc.pr-medium .av{background:rgba(255,255,255,.35);color:inherit}
 .tc.isdone{opacity:.6}
 [data-theme=dark] .tc.pr-low{background:var(--card);color:var(--txt)}
+.ttl.brand b{font-size:15px;letter-spacing:.06em;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ttl.brand small{font-size:11px;letter-spacing:.14em;font-weight:600;color:var(--sub)}
+@media(max-width:600px){.ttl.brand b{font-size:13px;letter-spacing:.03em}.ttl.brand small{font-size:10px;letter-spacing:.08em}}
+.top{background:rgba(255,255,255,.92)}[data-theme=dark] .top{background:color-mix(in srgb,var(--bg) 88%,transparent)}
+.chip.on{background:var(--txt);border-color:var(--txt);color:var(--bg)}
+.sc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:6px;cursor:pointer;box-shadow:var(--sh)}.sc:hover{box-shadow:0 6px 18px rgba(0,0,0,.08)}
+.sc .sci{height:110px;border-radius:10px;overflow:hidden;background:var(--card2)}.sc .sci img{width:100%;height:100%;object-fit:cover}.sc .sci.none{display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--mut);gap:4px;height:60px}.sc .sci.none svg{width:18px;height:18px}
+.sboard{grid-auto-columns:minmax(230px,1fr)}.stars{color:#e0a100;font-size:12px;letter-spacing:1px;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -304,6 +311,7 @@ textarea{min-height:84px;resize:vertical}
 <script>
 /* ===================== OSOA Desk — frontend ===================== */
 var VERSIONS=[
+  {v:'2.3.0',d:'16 Nov 2026',s:'Artist Selection, Artists Database, white design',t:'New Artist Selection board: Registered → Level 1 → Interview → Level 2 → Level 3 (plus Waitlist / Not selected) with interview score and notes, travel & stay, history, Google Form import and a master Send emails button. Optional team lead verification for level changes. New Artists Database with all artists across years (edit for admins and developer). Requests: team leads approve into their own team; all volunteers can see requests. White design and ONE STATE ONE ARTIST · MANAGEMENT DESK header.'},
   {v:'2.2.1',d:'16 Nov 2026',s:'Task cards coloured by priority',t:'Each task card is now filled with its priority colour: Urgent red, High orange, Medium yellow, Low white.'},
   {v:'2.2.0',d:'16 Nov 2026',s:'New Finance design, priority colours',t:'Finance has a new Financial Overview: total balance with cash and bank, income, expenses and net cards with change %, income breakdown, spending chart and budget heads. Income and expenses are now together in Transactions. Period filter (whole event, this month, last 7 days). Task priority colours: Urgent red, High orange, Medium yellow, Low white.'},
   {v:'2.1.2',d:'16 Nov 2026',s:'Cleaner, lighter typography',t:'Lighter, cleaner text style with a large "Hello, name" greeting.'},
@@ -359,7 +367,7 @@ wallet:'<rect x="3" y="6" width="18" height="14" rx="2.5"/><path d="M3 10h18M16 
 sitemap:'<rect x="9" y="3" width="6" height="5" rx="1"/><rect x="3" y="16" width="6" height="5" rx="1"/><rect x="15" y="16" width="6" height="5" rx="1"/><path d="M12 8v4M6 16v-4h12v4"/>',
 lock:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/>',inbox:'<path d="M3 13l3-8h12l3 8v6H3z"/><path d="M3 13h5l1 2h6l1-2h5"/>',
 activity:'<path d="M3 12h4l3-8 4 16 3-8h4"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
-shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>',download:'<path d="M12 4v11M7 10l5 5 5-5M4 20h16"/>',print:'<path d="M7 8V3h10v5M7 17H4v-7h16v7h-3M7 14h10v7H7z"/>',chat:'<path d="M4 5h16v11H9l-5 4z"/>',clip:'<path d="M20 11l-8.5 8.5a5 5 0 01-7-7L13 4a3.5 3.5 0 015 5l-8.5 8.5a2 2 0 01-3-3L14 7"/>'
+shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>',download:'<path d="M12 4v11M7 10l5 5 5-5M4 20h16"/>',print:'<path d="M7 8V3h10v5M7 17H4v-7h16v7h-3M7 14h10v7H7z"/>',chat:'<path d="M4 5h16v11H9l-5 4z"/>',star:'<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>',clip:'<path d="M20 11l-8.5 8.5a5 5 0 01-7-7L13 4a3.5 3.5 0 015 5l-8.5 8.5a2 2 0 01-3-3L14 7"/>'
 };
 function ic(n){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'+(IC[n]||'')+'</svg>';}
 
@@ -399,6 +407,7 @@ function route(){closeSheet();document.body.classList.remove('side');var p=parts
   if(!S.token)return renderLogin();
   if(p[0]==='programs')return renderPrograms();
   if(p[0]==='people')return renderPeople();
+  if(p[0]==='artistdb')return renderArtistDb();
   if(p[0]==='profile')return renderMyProfile();
   S.ev=null;S.data=null;S.pub=null;renderHome(false);}
 function shell(o){
@@ -407,13 +416,13 @@ function shell(o){
   var right=(o.bell?'<button class="ib bell" onclick="openNotifs()" aria-label="Notifications">'+ic('bell')+(S.data&&S.data.unread?'<span class="dot">'+S.data.unread+'</span>':'')+'</button>':'')+'<button class="ib themebtn" onclick="cycleTheme()" aria-label="Theme">'+ic(themeIcon())+'</button>';
   right+=S.me?'<div onclick="openAccount()" style="cursor:pointer">'+avatar(S.me)+'</div>':(S.token?'':'<button class="btn sm" onclick="go(\'#/\')">Login</button>');
   return '<div class="top"><div class="wrap topin">'+(o.back?'<button class="ib" onclick="'+o.back+'" aria-label="Back">'+ic('back')+'</button>':'')+logo+
-    '<div class="ttl'+(o.tap?' tap':'')+'" '+(o.tap?'onclick="'+o.tap+'"':'')+'><b>'+esc(o.title)+'</b>'+(o.subtitle?'<small>'+esc(o.subtitle)+(o.tap?' ▾':'')+'</small>':'')+'</div>'+right+'</div></div>';
+    '<div class="ttl'+(o.tap?' tap':'')+(o.brand?' brand':'')+'" '+(o.tap?'onclick="'+o.tap+'"':'')+'><b>'+esc(o.title)+'</b>'+(o.subtitle?'<small>'+esc(o.subtitle)+(o.tap?' ▾':'')+'</small>':'')+'</div>'+right+'</div></div>';
 }
 function logoutLocal(){S.token='';S.me=null;localStorage.removeItem('osoa-token');cacheClear();}
 function versionFoot(){var v=VERSIONS[0];return '<div class="v" onclick="showVersions()" title="See what is new"><b>Version '+esc(v.v)+'</b> · <span style="text-decoration:underline">What\'s new</span></div><button class="btn sm full" style="margin-top:10px" onclick="contactDev()">'+ic('mail')+'Contact developer</button>';}
 
 /* ============ LOGIN (first screen) ============ */
-function authShell(inner){setAccent('#D4A017');$('app').innerHTML='<div class="top"><div class="wrap topin"><div class="logo">OSOA</div><div class="ttl"><b>OSOA Desk</b><small>Event management</small></div><button class="ib themebtn" onclick="cycleTheme()" aria-label="Theme">'+ic(themeIcon())+'</button></div></div><main class="wrap"><div class="auth" id="auth">'+inner+'</div></main>';}
+function authShell(inner){setAccent('#D4A017');$('app').innerHTML='<div class="top"><div class="wrap topin"><div class="logo">OSOA</div><div class="ttl brand"><b>ONE STATE ONE ARTIST</b><small>MANAGEMENT DESK</small></div><button class="ib themebtn" onclick="cycleTheme()" aria-label="Theme">'+ic(themeIcon())+'</button></div></div><main class="wrap"><div class="auth" id="auth">'+inner+'</div></main>';}
 function renderLogin(){
   authShell('<div class="authlogo"><div class="logo">OSOA</div><h1 style="margin:6px 0 0">Welcome back</h1><p class="sub" style="margin:0">Log in to manage your events.</p></div>'+
   '<div class="card" style="padding:18px"><label style="margin-top:0">Username, mobile or email</label><input id="f_user" autocapitalize="none" autocomplete="username">'+
@@ -487,15 +496,16 @@ function doSignup(b){$('err').textContent='';busy(b,1);var vol=_suType==='volunt
 function loadInit(){return call('api_publicInit',{token:S.token}).then(function(r){S.programs=r.programs;S.events=r.events;S.cats=r.categories;S.me=r.me;if(r.me)cacheSet('me',r.me);if(!r.me&&S.token)logoutLocal();cacheSet('init',{programs:r.programs,events:r.events,cats:r.categories});return r;});}
 function renderHome(guest){
   var c=cacheGet('init');if(c){S.programs=c.programs;S.events=c.events;S.cats=c.cats;}
-  $('app').innerHTML=shell({title:'Event Desk',subtitle:guest&&!S.token?'Browsing as guest':'Choose an event',back:guest&&!S.token?"go('#/')":''})+'<main class="wrap" id="main">'+(c?'':'<div class="grid">'+skel(3).replace(/height:\d+px/g,'height:250px')+'</div>')+'</main>';
+  $('app').innerHTML=shell({title:'ONE STATE ONE ARTIST',subtitle:'MANAGEMENT DESK'+(guest&&!S.token?' · Guest':''),brand:1,back:guest&&!S.token?"go('#/')":''})+'<main class="wrap" id="main">'+(c?'':'<div class="grid">'+skel(3).replace(/height:\d+px/g,'height:250px')+'</div>')+'</main>';
   if(c)drawHome();
-  loadInit().then(function(){if($('app').querySelector('.top')){var t=document.querySelector('.top');t.outerHTML=shell({title:'Event Desk',subtitle:guest&&!S.token?'Browsing as guest':'Choose an event',back:guest&&!S.token?"go('#/')":''});}drawHome();})
+  loadInit().then(function(){if($('app').querySelector('.top')){var t=document.querySelector('.top');t.outerHTML=shell({title:'ONE STATE ONE ARTIST',subtitle:'MANAGEMENT DESK'+(guest&&!S.token?' · Guest':''),brand:1,back:guest&&!S.token?"go('#/')":''});}drawHome();})
   .catch(function(e){if(!c)$('main').innerHTML='<div class="empty">'+ic('info')+'<p>'+esc(errMsg(e))+'</p><button class="btn" onclick="route()">Try again</button></div>';});
 }
 function drawHome(){
   var sup=S.me&&S.me.isSuper,h='';
   h+='<h1>'+(S.me?'Hello, '+esc(S.me.fullName.split(' ')[0]):'Events')+'</h1><p class="sub" style="margin:0 0 14px">Choose an event to continue.</p>';
-  if(sup)h+='<div class="btns" style="margin-bottom:14px"><button class="btn p" onclick="editEvent()">'+ic('plus')+'New event</button><button class="btn" onclick="go(\'#/programs\')">'+ic('palette')+'Programs</button><button class="btn" onclick="go(\'#/people\')">'+ic('users')+'People</button></div>';
+  if(sup)h+='<div class="btns" style="margin-bottom:14px"><button class="btn p" onclick="editEvent()">'+ic('plus')+'New event</button><button class="btn" onclick="go(\'#/programs\')">'+ic('palette')+'Programs</button><button class="btn" onclick="go(\'#/people\')">'+ic('users')+'People</button><button class="btn" onclick="go(\'#/artistdb\')">'+ic('palette')+'Artists Database</button></div>';
+  else if(S.me&&Object.keys(S.me.roles||{}).some(function(k){return S.me.roles[k].role==='admin'&&S.me.roles[k].status==='approved';}))h+='<div class="btns" style="margin-bottom:14px"><button class="btn" onclick="go(\'#/artistdb\')">'+ic('palette')+'Artists Database</button></div>';
   h+='<div class="chips"><div class="chip '+(S.filter==='all'?'on':'')+'" onclick="S.filter=\'all\';drawHome()">All</div>'+S.programs.map(function(p){return '<div class="chip '+(S.filter===p.programId?'on':'')+'" onclick="S.filter=\''+p.programId+'\';drawHome()">'+esc(p.short)+'</div>';}).join('')+'</div>';
   var evs=S.events.filter(function(e){return S.filter==='all'||e.programId===S.filter;});
   if(!evs.length)h+='<div class="empty">'+ic('cal')+'<p>No events here yet.'+(sup?' Tap “New event” to create one.':'')+'</p></div>';
@@ -555,7 +565,7 @@ function openEvent(id){
   var c=S.token?cacheGet('ev:'+id):null, cp=cacheGet('pub:'+id), ci=cacheGet('init');
   if(ci&&!S.programs.length){S.programs=ci.programs;S.events=ci.events;S.cats=ci.cats;}
   var e=S.events.filter(function(x){return x.eventId===id;})[0], p=e?prog(e.programId):{};
-  $('app').innerHTML=shell({title:p.deskName||'Event Desk',subtitle:e?e.name:'',color:p.color,logoId:p.logoId,short:p.short,tap:"go('#/')"})+'<main class="wrap" id="main">'+skel(4)+'</main><div id="tabs"></div>';
+  $('app').innerHTML=shell({title:String(p.name||'One State One Artist').toUpperCase(),subtitle:'MANAGEMENT DESK'+(e?' · '+e.name:''),brand:1,color:p.color,logoId:p.logoId,short:p.short,tap:"go('#/')"})+'<main class="wrap" id="main">'+skel(4)+'</main><div id="tabs"></div>';
   if(!S.me&&S.token)S.me=cacheGet('me');
   if(c&&cp&&S.me){S.data=c;S.pub=cp;drawEvent();}
   else if(!S.token&&cp){S.pub=cp;drawGuestShell();}
@@ -566,29 +576,28 @@ function openEvent(id){
   }).catch(function(err){if(!S.data)$('main').innerHTML='<div class="empty">'+ic('info')+'<p>'+esc(errMsg(err))+'</p><button class="btn" onclick="go(\'#/\')">Back to events</button></div>';else toast(errMsg(err),1);});
 }
 function refreshShell(){var src=S.data||S.pub;var e=src.event,p=src.program||prog(e.programId);
-  var top=document.querySelector('.top');if(top)top.outerHTML=shell({title:p.deskName,subtitle:e.name,color:p.color,logoId:p.logoId,short:p.short,tap:"go('#/')",bell:!!(S.data&&S.data.role&&S.data.role!=='artist')});}
+  var top=document.querySelector('.top');if(top)top.outerHTML=shell({title:String(p.name||'One State One Artist').toUpperCase(),subtitle:'MANAGEMENT DESK · '+e.name,brand:1,color:p.color,logoId:p.logoId,short:p.short,tap:"go('#/')",bell:!!(S.data&&S.data.role&&S.data.role!=='artist')});}
 function reloadEvent(){return A('api_eventData',{eventId:S.ev}).then(useData);}
 function useData(d){S.data=d;cacheSet('ev:'+S.ev,d);drawEvent();if(d&&d.warnings&&d.warnings.length)toast('⚠ '+d.warnings.join(' · '),1);}
 function drawGuestShell(){refreshShell();document.body.classList.remove('side');$('tabs').innerHTML='';drawGuest();}
 
-function badgeCount(d){return ((d.joinRequests||[]).length+(d.accessRequests||[]).length);}
+function badgeCount(d){var lead=d.role==='admin'||(d.myHeadTeams||[]).length;return (lead?(d.joinRequests||[]).length+(d.accessRequests||[]).length:0)+(d.selection&&d.selection.canVerify?(d.artists||[]).filter(function(a){return a.stagePending;}).length:0);}
 function finBadge(d){return d.finance?d.finance.expenses.filter(function(x){return x.status==='requested'&&(!x.needsAdmin||d.role==='admin');}).length:0;}
 function tabsFor(d){var role=d.role,heads=(d.myHeadTeams||[]).length,t=[];
-  if(role==='admin'){t=[['dash','chart','Dashboard','m'],['artists','palette','Artists','m'],['teams','sitemap','Teams','m'],['tasks','list','Tasks','d'],['finance','wallet','Finance','m',finBadge(d)],['requests','inbox','Requests','d',badgeCount(d)],['more','more','More','m',badgeCount(d)]];}
-  else if(role==='volunteer'){t=[['home','home','Home','m'],['artists','palette','Artists','d'],['tasks','list','Tasks','m'],['teams','sitemap','Teams','m'],['finance','wallet','Finance','m',finBadge(d)]];
-    if(heads)t.push(['requests','inbox','Requests','d',badgeCount(d)]);t.push(['more','more','More','m',heads?badgeCount(d):0]);}
+  if(role==='admin'){t=[['dash','chart','Dashboard','m'],['selection','star','Selection','m'],['artists','check','Check-in','d'],['teams','sitemap','Teams','m'],['tasks','list','Tasks','d'],['finance','wallet','Finance','m',finBadge(d)],['requests','inbox','Requests','d',badgeCount(d)],['more','more','More','m',badgeCount(d)]];}
+  else if(role==='volunteer'){t=[['home','home','Home','m']];if(d.selection)t.push(['selection','star','Selection','d']);t=t.concat([['artists','check','Check-in','d'],['tasks','list','Tasks','m'],['teams','sitemap','Teams','m'],['finance','wallet','Finance','m',finBadge(d)],['requests','inbox','Requests','d',badgeCount(d)],['more','more','More','m',badgeCount(d)]]);}
   else if(role==='artist')t=[['ahome','home','My status','m'],['updates','bell','Updates','m'],['teams','sitemap','Teams','m'],['schedule','cal','Schedule','m'],['public','eye','Event','m']];
   return t;}
 function drawEvent(){refreshShell();var d=S.data,t=tabsFor(d);
   if(!d.role){$('tabs').innerHTML='';document.body.classList.remove('side');return drawGuest();}
   document.body.classList.add('side');
-  var all=t.map(function(x){return x[0];}).concat(['announcements','schedule','activity','public','access']);
+  var all=t.map(function(x){return x[0];}).concat(['announcements','schedule','activity','public','access','selection']);
   if(!S.tab||all.indexOf(S.tab)<0)S.tab=t[0][0];
   $('tabs').innerHTML='<div class="tabs"><div class="in">'+t.map(function(x){var cls=x[3]==='d'?' desk':(x[0]==='more'?' phone':'');
     return '<button class="tab'+cls+(S.tab===x[0]?' on':'')+'" onclick="setTab(\''+x[0]+'\')">'+ic(x[1])+x[2]+(x[4]?'<span class="dot">'+x[4]+'</span>':'')+'</button>';}).join('')+
     (d.role!=='artist'?'<button class="tab desk'+(['announcements','schedule','activity','public','access'].indexOf(S.tab)>=0||S.tab==='more'?' on':'')+'" onclick="setTab(\'more\')">'+ic('more')+'More</button>':'')+
     '</div><div class="sidefoot">'+versionFoot()+'</div></div>';
-  var f={dash:drawDash,home:drawVHome,artists:drawArtists,teams:drawTeams,tasks:drawTasks,finance:drawFinance,requests:drawRequests,more:drawMore,
+  var f={dash:drawDash,home:drawVHome,selection:drawSelection,artists:drawArtists,teams:drawTeams,tasks:drawTasks,finance:drawFinance,requests:drawRequests,more:drawMore,
     ahome:drawAHome,updates:drawUpdates,schedule:drawScheduleTab,public:drawGuest,announcements:drawAnnPage,activity:drawActivity,access:drawRequests}[S.tab];
   f();if(S.tab!=='public')$('main').insertAdjacentHTML('afterbegin',grantBar());
 }
@@ -776,12 +785,16 @@ function setRole(uid,b){busy(b,1);A('api_setRole',{eventId:S.ev,userId:uid,role:
 var DUR=[['15m','15 min'],['1h','1 hour'],['today','Till tonight'],['event','Till event ends'],['off','Until I turn it off'],['custom','Custom']];
 function durPicker(){return '<label>For how long?</label><div class="sug" id="durs">'+DUR.map(function(x,i){return '<div class="chip'+(i===1?' on':'')+'" data-m="'+x[0]+'" onclick="[].forEach.call($(\'durs\').children,function(c){c.classList.remove(\'on\')});this.classList.add(\'on\');$(\'dur_c\').classList.toggle(\'hide\',this.dataset.m!==\'custom\')">'+x[1]+'</div>';}).join('')+'</div><div id="dur_c" class="hide"><label>Minutes</label><input id="dur_min" inputmode="numeric" placeholder="30"></div>';}
 function durVal(){var on=document.querySelector('#durs .chip.on');return {mode:on?on.dataset.m:'1h',minutes:($('dur_min')||{}).value};}
-function drawRequests(){var d=S.data,jr=d.joinRequests||[],ar=d.accessRequests||[],gg=d.grantsGiven||[],h='<h1>Requests</h1><p class="sub" style="margin:0 0 6px">Volunteer join requests and section access.</p>';
-  h+='<h2>Volunteer requests ('+jr.length+')</h2>'+(jr.length?jr.map(function(r){return '<div class="card"><div class="row" style="cursor:pointer" onclick="openProfile(\''+r.userId+'\')">'+avatar(r)+'<div class="grow"><b>'+esc(r.name)+'</b>'+bdgs(r.userId,2)+'<div class="mut">@'+esc(r.username)+' · '+esc([r.city,r.state].filter(Boolean).join(', '))+(r.preferredTeam?' · wants '+esc(r.preferredTeam):'')+'</div></div><span class="mut">'+ago(r.createdAt)+'</span></div>'+(r.note?'<p class="sub" style="margin:8px 0 0">“'+esc(r.note)+'”</p>':'')+
-    '<div class="btns" style="margin-top:10px"><button class="btn p sm" onclick="approveVol(\''+r.roleId+'\')">'+ic('check')+'Approve</button><button class="btn bad sm" onclick="rejectVol(\''+r.roleId+'\')">'+ic('x')+'Reject</button><button class="btn sm" onclick="openProfile(\''+r.userId+'\')">'+ic('user')+'Profile</button></div></div>';}).join(''):'<div class="mut">No pending volunteer requests.</div>');
+function drawRequests(){var d=S.data,jr=d.joinRequests||[],ar=d.accessRequests||[],gg=d.grantsGiven||[],admin=d.role==='admin',heads=d.myHeadTeams||[],lead=heads.length>0,sel=d.selection,pend=(d.artists||[]).filter(function(a){return a.stagePending;});
+  var h='<h1>Requests</h1><p class="sub" style="margin:0 0 6px">'+(admin?'Volunteer join requests, artist verifications and section access.':lead?'You can approve volunteers into your own team and handle access for your team.':'Requests waiting for the organisers. Only admins and team leads can approve volunteers.')+'</p>';
+  if(sel&&sel.canVerify&&pend.length)h+='<h2>Artist level changes to verify ('+pend.length+')</h2><div class="card" style="padding:2px 14px">'+pend.map(verifyRow).join('')+'</div>';
+  h+='<h2>Volunteer requests ('+jr.length+')</h2>'+(jr.length?jr.map(function(r){var canA=admin||lead,canR=admin||heads.indexOf(r.preferredTeamId)>=0;
+    return '<div class="card"><div class="row" style="cursor:pointer" onclick="openProfile(\''+r.userId+'\')">'+avatar(r)+'<div class="grow"><b>'+esc(r.name)+'</b>'+bdgs(r.userId,2)+'<div class="mut">'+esc([r.city,r.state].filter(Boolean).join(', '))+' · '+(r.preferredTeam?'wants '+esc(r.preferredTeam):'no team preference')+'</div></div><span class="mut">'+ago(r.createdAt)+'</span></div>'+(r.note?'<p class="sub" style="margin:8px 0 0">“'+esc(r.note)+'”</p>':'')+
+    (canA||canR?'<div class="btns" style="margin-top:10px">'+(canA?'<button class="btn p sm" onclick="approveVol(\''+r.roleId+'\')">'+ic('check')+(admin?'Approve':'Add to my team')+'</button>':'')+(canR?'<button class="btn bad sm" onclick="rejectVol(\''+r.roleId+'\')">'+ic('x')+'Reject</button>':'')+'<button class="btn sm" onclick="openProfile(\''+r.userId+'\')">'+ic('user')+'Profile</button></div>':'<div class="mut" style="margin-top:8px">'+ic('clock').replace('<svg','<svg style="width:14px;height:14px;vertical-align:-2px"')+' Waiting for an admin or team lead</div>')+'</div>';}).join(''):'<div class="mut">No pending volunteer requests.</div>');
+  if(admin||lead){
   h+='<h2>Access requests ('+ar.length+')</h2>'+(ar.length?ar.map(function(r){return '<div class="card"><div class="row">'+avatar(r.user)+'<div class="grow"><b>'+esc(r.user.fullName)+'</b><div class="mut">wants <b>'+esc(SEC_NAME[r.section])+'</b> · '+ago(r.createdAt)+'</div></div></div>'+(r.reason?'<p class="sub" style="margin:8px 0 0">“'+esc(r.reason)+'”</p>':'')+
     '<div class="btns" style="margin-top:10px"><button class="btn p sm" onclick="approveAccess(\''+r.reqId+'\')">'+ic('check')+'Give access</button><button class="btn bad sm" onclick="refuseAccess(\''+r.reqId+'\',this)">'+ic('x')+'Refuse</button></div></div>';}).join(''):'<div class="mut">No pending access requests.</div>');
-  h+='<h2>Access given ('+gg.length+')</h2>'+(gg.length?'<div class="card" style="padding:2px 14px">'+gg.map(function(g){return '<div class="li">'+avatar(g.user)+'<div class="grow"><b>'+esc(g.user.fullName)+'</b><span class="mut">'+esc(SEC_NAME[g.section])+' · '+(g.expiresAt?'<b data-exp="'+esc(g.expiresAt)+'">…</b> left':'until turned off')+'</span></div><button class="btn sm bad" onclick="revokeAccess(\''+g.grantId+'\',this)">Turn off</button></div>';}).join('')+'</div>':'<div class="mut">Nobody has temporary access right now.</div>');
+  h+='<h2>Access given ('+gg.length+')</h2>'+(gg.length?'<div class="card" style="padding:2px 14px">'+gg.map(function(g){return '<div class="li">'+avatar(g.user)+'<div class="grow"><b>'+esc(g.user.fullName)+'</b><span class="mut">'+esc(SEC_NAME[g.section])+' · '+(g.expiresAt?'<b data-exp="'+esc(g.expiresAt)+'">…</b> left':'until turned off')+'</span></div><button class="btn sm bad" onclick="revokeAccess(\''+g.grantId+'\',this)">Turn off</button></div>';}).join('')+'</div>':'<div class="mut">Nobody has temporary access right now.</div>');}
   $('main').innerHTML=h;}
 function approveVol(id){var d=S.data,r=d.joinRequests.filter(function(x){return x.roleId===id;})[0],admin=d.role==='admin',teams=(d.teams||[]).filter(function(t){return admin||d.myHeadTeams.indexOf(t.teamId)>=0;});
   sheet('Approve '+r.name,'<label style="margin-top:0">Add to team</label><select id="ap_team">'+(admin?'<option value="">No team for now</option>':'')+teams.map(function(t){return '<option value="'+t.teamId+'" '+(t.teamId===r.preferredTeamId?'selected':'')+'>'+esc(t.name)+'</option>';}).join('')+'</select>'+
@@ -960,9 +973,11 @@ function drawActivity(){var l=S.data.activity||[];$('main').innerHTML='<h1>Activ
 
 /* ---- MORE ---- */
 function drawMore(){var d=S.data,sup=S.me.isSuper,admin=d.role==='admin',head=(d.myHeadTeams||[]).length,canTasks=d.sections&&d.sections.tasks,it=[];
-  it.push(['list','Tasks',"setTab('tasks')",0,'phone']);
-  if(admin||head)it.push(['inbox','Requests',"setTab('requests')",badgeCount(d),'phone']);
-  if(d.role==='volunteer')it.push(['palette','Artists & Check-in',"setTab('artists')",0,'phone']);
+  if(d.role==='volunteer'&&d.selection)it.push(['star','Artist Selection',"setTab('selection')",0,'phone']);
+  it.push(['check','Artists & Check-in',"setTab('artists')",0,'phone'],['list','Tasks',"setTab('tasks')",0,'phone']);
+  if(admin)it.push(['sitemap','Teams',"setTab('teams')",0,'phone']);
+  it.push(['inbox','Requests',"setTab('requests')",badgeCount(d),'phone']);
+  if(admin||(d.selection&&d.selection.canMove))it.push(['users','Artists Database (all years)',"go('#/artistdb')"]);
   it.push(['bell','Announcements',"setTab('announcements')"],['cal','Schedule',canTasks?'schedPage()':"setTab('schedule')"]);
   if(admin||head)it.push(['activity','Activity',"setTab('activity')"]);
   if(admin)it.push(['edit','Event settings','editEvent(S.data.event)']);
@@ -1181,6 +1196,122 @@ function drawPeopleList(){var q=($('pq').value||'').toLowerCase(),l=window._peop
     '<button class="btn sm" onclick="toggleSuper(\''+u.userId+'\','+(!u.isSuper)+',this)">'+(u.isSuper?'Remove super':'Make super')+'</button><button class="btn sm '+(u.isDisabled?'ok':'bad')+'" onclick="toggleDisabled(\''+u.userId+'\','+(!u.isDisabled)+',this)">'+(u.isDisabled?'Enable':'Disable')+'</button></div>';}).join('')||'<div class="empty">No one found.</div>';}
 function toggleSuper(id,v,b){if(!confirmBox(v?'Give this person full access to all events?':'Remove super admin access?'))return;busy(b,1);A('api_setSuper',{userId:id,value:v}).then(function(l){window._people=l;drawPeopleList();toast('Updated');}).catch(function(e){busy(b,0);toast(errMsg(e),1);});}
 function toggleDisabled(id,v,b){if(!confirmBox(v?'Disable this account? They will be logged out.':'Enable this account?'))return;busy(b,1);A('api_setDisabled',{userId:id,value:v}).then(function(l){window._people=l;drawPeopleList();toast('Updated');}).catch(function(e){busy(b,0);toast(errMsg(e),1);});}
+
+/* ============ ARTIST SELECTION ============ */
+var SG={registered:['Registered','gray'],level1:['Level 1 · Shortlisted','blue'],interview:['Interview','purple'],level2:['Level 2 · Final','orange'],level3:['Level 3 · Confirmed','green'],waitlist:['Waitlist','yellow'],rejected:['Not selected','red']};
+var SGO=['registered','level1','interview','level2','level3','waitlist','rejected'];
+function sgPill(s){var x=SG[s]||SG.registered;return '<span class="bdg t-'+x[1]+'">'+x[0]+'</span>';}
+function stars(n){n=Number(n)||0;if(!n)return '';var h='';for(var i=1;i<=5;i++)h+=i<=n?'★':'☆';return '<span class="stars">'+h+'</span>';}
+function selCard(a,can){var art=a.artworks&&a.artworks[0];
+  return '<div class="sc" '+(can?'draggable="true" ondragstart="event.dataTransfer.setData(\'text\',\''+a.roleId+'\')"':'')+' onclick="selDetail(\''+a.roleId+'\')">'+
+  (art?'<div class="sci"><img loading="lazy" src="'+img(art)+'"></div>':(a.artworkLinks?'<div class="sci none">'+ic('clip')+'<small>Artwork link</small></div>':''))+
+  '<div class="row" style="gap:8px">'+avatar(a,'xs')+'<b class="grow" style="font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(a.name)+'</b>'+stars(a.interviewScore)+'</div>'+
+  '<div class="mut" style="font-size:12.5px">'+esc([a.state,a.category].filter(Boolean).join(' · '))+'</div>'+
+  (a.stagePending?'<span class="bdg t-yellow">⏳ To verify → '+esc(SG[a.stagePending][0])+'</span>':'')+
+  (a.stage!=='registered'&&!a.emailed&&!a.stagePending&&S.data.selection.canEmail?'<span class="bdg t-gray">✉ Email not sent</span>':'')+(a.source==='import'?'<span class="bdg t-gray">Google Form</span>':'')+'</div>';}
+function selArtists(){var q=(S.sub.sq||'').toLowerCase(),cat=S.sub.sc||'';
+  return (S.data.artists||[]).filter(function(a){return (!cat||a.category===cat)&&(!q||[a.name,a.state,a.city,a.category,a.username,a.mobile,a.email].join(' ').toLowerCase().indexOf(q)>=0);});}
+function drawSelection(){var d=S.data;if(!d.sections.artists||!d.selection){$('main').innerHTML=lockedPage('artists');return;}
+  var sel=d.selection,all=d.artists||[],view=S.sub.sv||'board',l=selArtists(),pend=all.filter(function(a){return a.stagePending;});
+  var h='<div class="row" style="flex-wrap:wrap;align-items:flex-end;gap:10px"><div class="grow"><h1 class="hello" style="font-size:32px">Artist <b>Selection</b></h1><p class="sub" style="margin:4px 0 0">Registered → Level 1 → Interview → Level 2 → Level 3'+(sel.teamName?' · Team: '+esc(sel.teamName):'')+'</p></div>'+
+    (sel.canEmail?'<button class="btn '+(sel.pendingEmails?'p':'')+'" '+(sel.pendingEmails?'':'disabled')+' onclick="sendStageEmails(this)">'+ic('mail')+'Send emails'+(sel.pendingEmails?' ('+sel.pendingEmails+')':'')+'</button>':'')+
+    (sel.canMove?'<button class="btn" onclick="importForm()">'+ic('download')+'Import Google Form</button>':'')+
+    (sel.canSettings||sel.canVerify?'<button class="ib" onclick="selSettings()" aria-label="Selection settings">'+ic('gear')+'</button>':'')+'</div>';
+  if(!sel.teamId&&sel.canSettings)h+='<div class="infobox">Choose which team handles artist selection. Members of that team can move artists between levels. <a href="javascript:selSettings()">Choose team</a></div>';
+  if(sel.canVerify&&pend.length)h+='<h2>Waiting for your verification ('+pend.length+')</h2><div class="card" style="padding:2px 14px">'+pend.map(verifyRow).join('')+'</div>';
+  h+='<div class="stats" style="margin:14px 0">'+SGO.slice(0,5).map(function(s){return '<div class="stat"><small>'+SG[s][0]+'</small><b>'+all.filter(function(a){return a.stage===s;}).length+'</b></div>';}).join('')+'</div>';
+  var cats={};all.forEach(function(a){if(a.category)cats[a.category]=1;});
+  h+='<div class="row" style="flex-wrap:wrap;margin-bottom:12px"><input placeholder="Search name, state, category, mobile" value="'+esc(S.sub.sq||'')+'" oninput="S.sub.sq=this.value;clearTimeout(window._sq);window._sq=setTimeout(drawSelection,350)" style="flex:1;min-width:200px">'+
+    '<select style="width:auto" onchange="S.sub.sc=this.value;drawSelection()"><option value="">All categories</option>'+Object.keys(cats).sort().map(function(c){return '<option '+(S.sub.sc===c?'selected':'')+'>'+esc(c)+'</option>';}).join('')+'</select>'+
+    '<div class="seg" style="flex:none"><button class="'+(view==='board'?'on':'')+'" onclick="S.sub.sv=\'board\';drawSelection()">Board</button><button class="'+(view==='list'?'on':'')+'" onclick="S.sub.sv=\'list\';drawSelection()">List</button></div></div>';
+  if(!all.length)h+='<div class="empty">'+ic('palette')+'<p>No artist registrations yet. Artists register from the event page'+(sel.canMove?', or import your Google Form responses.':'.')+'</p></div>';
+  else if(view==='board')h+='<div class="board sboard">'+SGO.map(function(s){var c=l.filter(function(a){return a.stage===s;});
+    return '<div class="col" '+(sel.canMove?'ondragover="event.preventDefault();this.classList.add(\'over\')" ondragleave="this.classList.remove(\'over\')" ondrop="this.classList.remove(\'over\');dropArtist(event,\''+s+'\')"':'')+'><div class="colh">'+sgPill(s)+'<span class="mut">'+c.length+'</span></div>'+c.map(function(a){return selCard(a,sel.canMove);}).join('')+'</div>';}).join('')+'</div>';
+  else h+='<div class="card" style="padding:0;overflow:auto"><table class="tbl"><tr><th></th><th>Artist</th><th>State</th><th>Category</th><th>Stage</th><th>Score</th><th>Email</th></tr>'+l.map(function(a){return '<tr class="click" onclick="selDetail(\''+a.roleId+'\')"><td style="width:46px">'+avatar(a)+'</td><td><b style="font-weight:500">'+esc(a.name)+'</b><div class="mut">'+esc(a.mobile||'@'+a.username)+'</div></td><td>'+esc(a.state||'')+'</td><td>'+esc(a.category||'')+'</td><td>'+sgPill(a.stage)+(a.stagePending?' <span class="bdg t-yellow">⏳ '+esc(SG[a.stagePending][0])+'</span>':'')+'</td><td>'+stars(a.interviewScore)+'</td><td>'+(a.stage==='registered'?'—':(a.emailed?'<span class="bdg t-green">Sent</span>':'<span class="bdg t-gray">Not sent</span>'))+'</td></tr>';}).join('')+'</table></div>';
+  $('main').innerHTML=h;}
+function verifyRow(a){return '<div class="li">'+avatar(a)+'<div class="grow"><b>'+esc(a.name)+'</b><span class="mut">'+esc(a.stagePendingName)+' wants: '+esc(SG[a.stage][0])+' → <b>'+esc(SG[a.stagePending][0])+'</b></span></div><button class="btn sm p" onclick="verifyStage(\''+a.roleId+'\',true,this)">Verify</button><button class="btn sm bad" onclick="verifyStage(\''+a.roleId+'\',false,this)">Refuse</button></div>';}
+function verifyStage(id,ok,b){busy(b,1);A('api_verifyStage',{roleId:id,approve:ok}).then(function(d){toast(ok?'Verified':'Refused');useData(d);}).catch(function(e){busy(b,0);toast(errMsg(e),1);});}
+function dropArtist(ev,st){ev.preventDefault();var id=ev.dataTransfer.getData('text'),a=(S.data.artists||[]).filter(function(x){return x.roleId===id;})[0];if(!a||a.stage===st)return;
+  if(st==='rejected'){selDetail(id,st);return;}moveArtist(id,st,'');}
+function moveArtist(id,st,note,b){if(b)busy(b,1);A('api_moveArtist',{roleId:id,stage:st,note:note}).then(function(d){var a0=(d.artists||[]).filter(function(x){return x.roleId===id;})[0];
+  toast(a0&&a0.stagePending?'Sent to team lead for verification':'Moved to '+SG[st][0]);useData(d);if($('sheetbg'))selDetail(id);}).catch(function(e){if(b)busy(b,0);toast(errMsg(e),1);});}
+function selDetail(id,pre){var d=S.data,sel=d.selection,a=(d.artists||[]).filter(function(x){return x.roleId===id;})[0];if(!a)return;var tv=a.travel||{};
+  var h='<div class="row" style="margin-bottom:10px">'+avatar(a,'lg')+'<div class="grow"><b style="font-size:18px">'+esc(a.name)+'</b><div class="mut">'+esc([a.city,a.state].filter(Boolean).join(', '))+(a.category?' · '+esc(a.category):'')+'</div><div class="tags" style="margin-top:6px">'+sgPill(a.stage)+(a.stagePending?'<span class="bdg t-yellow">⏳ To verify → '+esc(SG[a.stagePending][0])+'</span>':'')+stars(a.interviewScore)+'</div></div></div>';
+  if(a.mobile||a.email)h+='<div class="btns" style="margin-bottom:10px">'+(a.mobile?'<a class="btn sm" href="tel:'+esc(a.mobile)+'">'+ic('phone')+esc(a.mobile)+'</a><a class="btn sm" target="_blank" rel="noopener" href="'+waLink(a.mobile,'Hello '+a.name+', ')+'">'+ic('wa')+'WhatsApp</a>':'')+(a.email?'<a class="btn sm" href="mailto:'+esc(a.email)+'">'+ic('mail')+'Email</a>':'')+'</div>';
+  if(a.artTitle)h+='<h3>'+esc(a.artTitle)+'</h3>';if(a.bio)h+='<p class="sub" style="white-space:pre-wrap;margin-top:0">'+esc(a.bio)+'</p>';
+  if(a.artworks.length)h+='<div class="gal" style="margin-bottom:10px">'+a.artworks.map(function(i){return '<div class="gi" onclick="viewImg(\''+i+'\')"><div class="im"><img src="'+img(i)+'"></div></div>';}).join('')+'</div>';
+  if(a.artworkLinks)h+='<div class="card"><b>Artwork links (Google Form)</b>'+String(a.artworkLinks).split(/[\s,]+/).filter(function(x){return /^https?:/.test(x);}).map(function(u,i){return '<div><a target="_blank" rel="noopener" href="'+esc(u)+'">Open artwork '+(i+1)+' ↗</a></div>';}).join('')+'</div>';
+  if(sel.canMove){h+='<h3 style="margin-top:14px">Move to</h3><div class="sug" id="mv">'+SGO.filter(function(s){return s!==a.stage;}).map(function(s){return '<div class="chip" data-s="'+s+'" onclick="[].forEach.call($(\'mv\').children,function(c){c.classList.remove(\'on\')});this.classList.add(\'on\');$(\'mvn\').classList.toggle(\'hide\',this.dataset.s!==\'rejected\')">'+esc(SG[s][0])+'</div>';}).join('')+'</div>'+
+    '<div id="mvn" class="'+(pre==='rejected'?'':'hide')+'"><label class="req">Reason for not selecting</label><input id="mv_note"></div><button class="btn p full" style="margin-top:10px" onclick="var c=document.querySelector(\'#mv .on\');if(!c){toast(\'Choose a stage\',1);return;}moveArtist(\''+id+'\',c.dataset.s,($(\'mv_note\')||{}).value||\'\',this)">Move artist</button>'+
+    (!sel.canVerify&&sel.requireVerify?'<p class="mut" style="margin:6px 0 0">Your team lead will verify this change.</p>':'');
+    if(sel.canVerify&&a.stagePending)h+='<div class="btns" style="margin-top:10px"><button class="btn ok" onclick="verifyStage(\''+id+'\',true,this)">✓ Verify move to '+esc(SG[a.stagePending][0])+'</button><button class="btn bad" onclick="verifyStage(\''+id+'\',false,this)">Refuse</button></div>';
+    h+='<h3 style="margin-top:18px">Interview</h3><div class="card"><div class="two"><div><label style="margin-top:0">Date & time</label><input id="iv_at" type="datetime-local" value="'+esc(a.interviewAt||'')+'"></div><div><label style="margin-top:0">Score</label><select id="iv_sc"><option value="0">—</option>'+[1,2,3,4,5].map(function(n){return '<option value="'+n+'" '+(a.interviewScore===n?'selected':'')+'>'+'★'.repeat(n)+' ('+n+'/5)</option>';}).join('')+'</select></div></div><label>Notes</label><textarea id="iv_n" style="min-height:64px">'+esc(a.interviewNotes||'')+'</textarea><button class="btn sm" style="margin-top:8px" onclick="saveInterview(\''+id+'\',this)">Save interview</button></div>';
+    if(a.stage==='level2'||a.stage==='level3')h+='<h3 style="margin-top:18px">Travel & stay</h3><div class="card"><div class="three"><div><label style="margin-top:0">Mode</label><select id="tv_mode">'+opts(['','Train','Flight','Bus','Car','Self'],tv.mode)+'</select></div><div><label style="margin-top:0">Train / flight no.</label><input id="tv_num" value="'+esc(tv.number)+'"></div><div><label style="margin-top:0">PNR</label><input id="tv_pnr" value="'+esc(tv.pnr)+'"></div></div>'+
+      '<div class="two"><div><label>Coming from</label><input id="tv_from" value="'+esc(tv.from)+'"></div><div><label>Arrival</label><input id="tv_arr" type="datetime-local" value="'+esc(tv.arriveAt)+'"></div></div><div class="two"><div><label>Departure</label><input id="tv_dep" type="datetime-local" value="'+esc(tv.departAt)+'"></div><div><label>Stay / hotel</label><input id="tv_stay" value="'+esc(tv.stay)+'"></div></div>'+
+      '<div class="three"><div><label>Room</label><input id="tv_room" value="'+esc(tv.room)+'"></div><div><label>Pickup time</label><input id="tv_pk" type="datetime-local" value="'+esc(tv.pickupAt)+'"></div><div><label>Pickup by</label><input id="tv_pkb" value="'+esc(tv.pickupBy)+'"></div></div>'+
+      '<label>Ticket (optional)</label>'+(tv.ticketId?'<div class="row" style="margin-bottom:6px"><a class="filechip" target="_blank" rel="noopener" href="'+img(tv.ticketId)+'">'+ic('doc')+esc(tv.ticketName||'Ticket')+'</a></div>':'')+'<input id="tv_tk" type="file" accept="image/*,application/pdf"><button class="btn sm" style="margin-top:10px" onclick="saveTravel(\''+id+'\',this)">Save travel & stay</button></div>';}
+  else if(a.interviewAt||a.interviewNotes)h+='<div class="card"><b>Interview</b><div class="mut">'+esc(String(a.interviewAt||'').replace('T',' '))+'</div>'+(a.interviewNotes?'<p style="margin:6px 0 0">'+esc(a.interviewNotes)+'</p>':'')+'</div>';
+  if(a.stage==='level2'||a.stage==='level3')h+='<button class="btn full" style="margin-top:12px" onclick="toggleCheck(\''+id+'\');closeSheet();setTimeout(drawEvent,200)">'+ic('check')+(a.checkedIn?'Undo check-in':'Check in now')+'</button>';
+  h+='<h3 style="margin-top:18px">History</h3><div id="sh_hist"><div class="sk" style="height:50px"></div></div>';
+  if(d.role==='admin')h+='<button class="btn bad full" style="margin-top:14px" onclick="removeRole(\''+id+'\')">'+ic('trash')+'Remove from event</button>';
+  sheet('Artist',h);if(pre&&$('mv')){var c=document.querySelector('#mv [data-s="'+pre+'"]');if(c)c.click();}
+  A('api_stageHistory',{roleId:id}).then(function(l){if(!$('sh_hist'))return;$('sh_hist').innerHTML=l.length?'<div class="timeline">'+l.map(function(x){return '<div>'+esc(SG[x.from]?SG[x.from][0]:x.from)+' → <b>'+esc(SG[x.to]?SG[x.to][0]:x.to)+'</b> · '+esc(x.by)+(x.verifiedBy?' (verified by '+esc(x.verifiedBy)+')':'')+' · '+esc(fmtTime(x.at))+(x.note?'<br><span class="mut">'+esc(x.note)+'</span>':'')+'</div>';}).join('')+'</div>':'<div class="mut">No changes yet.</div>';}).catch(function(){if($('sh_hist'))$('sh_hist').innerHTML='';});}
+function saveInterview(id,b){busy(b,1);A('api_saveInterview',{roleId:id,interviewAt:$('iv_at').value,score:$('iv_sc').value,notes:$('iv_n').value}).then(function(d){busy(b,0,'Saved ✓');useData(d);selDetail(id);toast('Interview saved');}).catch(function(e){busy(b,0);toast(errMsg(e),1);});}
+function saveTravel(id,b){busy(b,1);var f=fileOf('tv_tk');var rd=f?(/^image/.test(f.type)?readImg(f,1600).then(function(x){return {name:f.name.replace(/\.\w+$/,'.jpg'),type:'image/jpeg',data:x};}):new Promise(function(res,rej){if(f.size>10*1024*1024)return rej('Ticket file is larger than 10 MB.');var r=new FileReader();r.onload=function(){res({name:f.name,type:f.type,data:r.result});};r.readAsDataURL(f);})):Promise.resolve(null);
+  rd.then(function(tk){return A('api_saveTravel',{roleId:id,travel:{mode:$('tv_mode').value,number:$('tv_num').value,pnr:$('tv_pnr').value,from:$('tv_from').value,arriveAt:$('tv_arr').value,departAt:$('tv_dep').value,stay:$('tv_stay').value,room:$('tv_room').value,pickupAt:$('tv_pk').value,pickupBy:$('tv_pkb').value,ticket:tk||undefined}});})
+  .then(function(d){useData(d);selDetail(id);toast('Travel & stay saved');}).catch(function(e){busy(b,0);toast(errMsg(e),1);});}
+function sendStageEmails(b){var n=S.data.selection.pendingEmails;if(!confirmBox('Send emails to '+n+' artist'+(n>1?'s':'')+' about their new level?'))return;busy(b,1);
+  A('api_sendStageEmails',{eventId:S.ev}).then(function(r){toast(r.sent+' email'+(r.sent===1?'':'s')+' sent'+(r.noEmail?' · '+r.noEmail+' without email':'')+(r.failed?' · '+r.failed+' failed':'')+(r.left?' · '+r.left+' left (daily limit)':''),r.failed>0);useData(r.data);}).catch(function(e){busy(b,0);toast(errMsg(e),1);});}
+function selSettings(){var d=S.data,sel=d.selection,t=(d.teams||[]).filter(function(x){return x.teamId===sel.teamId;})[0];
+  sheet('Selection settings',(sel.canSettings?'<label style="margin-top:0">Team that handles artist selection</label><select id="ss_team"><option value="">— None (admins only) —</option>'+(d.teams||[]).map(function(x){return '<option value="'+x.teamId+'" '+(x.teamId===sel.teamId?'selected':'')+'>'+esc(x.name)+'</option>';}).join('')+'</select><button class="btn p full" style="margin-top:10px" onclick="saveSelTeam(this)">Save team</button>':'')+
+  (sel.teamId&&sel.canVerify?'<div class="card" style="margin-top:16px"><label style="margin:0;font-weight:600;color:var(--txt)"><input type="checkbox" id="ss_ver" '+(sel.requireVerify?'checked':'')+' onchange="setVerify(this)">Team lead must verify level changes</label><p class="mut" style="margin:6px 0 0">On: when a team member moves an artist, it waits for the lead (or an admin) to verify. Off: members decide on their own.</p></div>':'')+
+  (!sel.canSettings&&!sel.teamId?'<p class="sub">An admin has not chosen a selection team yet.</p>':''));}
+function saveSelTeam(b){busy(b,1);A('api_selectionSettings',{eventId:S.ev,selectionTeamId:$('ss_team').value}).then(function(d){closeSheet();toast('Saved');useData(d);}).catch(function(e){busy(b,0);toast(errMsg(e),1);});}
+function setVerify(el){A('api_setTeamVerify',{teamId:S.data.selection.teamId,value:el.checked}).then(function(d){toast(el.checked?'Lead verification on':'Members decide on their own');useData(d);}).catch(function(e){el.checked=!el.checked;toast(errMsg(e),1);});}
+/* ---- Google Form import ---- */
+function parseCsv(t){var rows=[],row=[],f='',q=false;for(var i=0;i<t.length;i++){var c=t[i];if(q){if(c==='"'){if(t[i+1]==='"'){f+='"';i++;}else q=false;}else f+=c;}
+  else if(c==='"')q=true;else if(c===','){row.push(f);f='';}else if(c==='\n'||c==='\r'){if(c==='\r'&&t[i+1]==='\n')i++;row.push(f);rows.push(row);row=[];f='';}else f+=c;}
+  if(f||row.length){row.push(f);rows.push(row);}return rows.filter(function(r){return r.some(function(x){return String(x).trim();});});}
+var IMP_MAP=[['name',/^(full\s*)?name|artist.?name|your name/i],['email',/e-?mail/i],['mobile',/mobile|phone|whats\s*app|contact/i],['state',/state/i],['city',/city|district|town/i],['category',/category|medium|style|art\s*form|type of art/i],['artTitle',/title/i],['bio',/bio|about|describe|introduc/i],['instagram',/insta/i],['links',/artwork|upload|photo|image|drive|link|portfolio/i]];
+var _imp=null;
+function importForm(){_imp=null;sheet('Import from Google Form','<ol class="sub" style="margin-top:0;padding-left:18px"><li>Open your Google Form → <b>Responses</b> → <b>View in Sheets</b>.</li><li>In the sheet: <b>File → Download → Comma-separated values (.csv)</b>.</li><li>Choose that file below.</li></ol>'+
+  '<input id="imp_f" type="file" accept=".csv,text/csv" onchange="readImport(this)"><div id="imp_r" style="margin-top:12px"></div>');}
+function readImport(inp){var f=inp.files[0];if(!f)return;var r=new FileReader();r.onload=function(){var rows=parseCsv(String(r.result).replace(/^﻿/,''));if(rows.length<2){$('imp_r').innerHTML='<div class="err">No responses found in this file.</div>';return;}
+  var hd=rows[0],map={};IMP_MAP.forEach(function(m){for(var i=0;i<hd.length;i++){if(m[1].test(hd[i])&&!Object.keys(map).some(function(k){return map[k]===i;})){map[m[0]]=i;break;}}});
+  _imp=rows.slice(1).map(function(rw){var o={};Object.keys(map).forEach(function(k){o[k]=String(rw[map[k]]||'').trim();});return o;}).filter(function(o){return o.name;});
+  $('imp_r').innerHTML='<div class="card"><b>'+_imp.length+' responses found</b><div class="kv" style="margin-top:8px">'+IMP_MAP.map(function(m){return '<div>'+m[0]+'</div><div>'+(map[m[0]]!==undefined?esc(hd[map[m[0]]]):'<span class="mut">not found</span>')+'</div>';}).join('')+'</div></div>'+
+  (map.email===undefined&&map.mobile===undefined?'<div class="err">Could not find an email or mobile column.</div>':'<p class="mut">People already registered (same email or mobile) are skipped. New artists get an account and can log in with “Forgot password”.</p><button class="btn p full" onclick="doImport(this)">Import '+_imp.length+' artists</button>');};r.readAsText(f);}
+function doImport(b){busy(b,1);var rows=_imp.slice(),tot={added:0,existing:0,skipped:0},last=null;
+  (function next(){var chunk=rows.splice(0,60);if(!chunk.length){closeSheet();toast(tot.added+' added · '+tot.existing+' already there'+(tot.skipped?' · '+tot.skipped+' skipped':''));if(last)useData(last);return;}
+    A('api_importArtists',{eventId:S.ev,rows:chunk}).then(function(r){tot.added+=r.added;tot.existing+=r.existing;tot.skipped+=r.skipped;last=r.data;next();}).catch(function(e){busy(b,0);toast(errMsg(e),1);});})();}
+
+/* ============ ARTISTS DATABASE ============ */
+function renderArtistDb(){adminPage('Artists Database','<div class="sk" style="height:300px"></div>');$('app').querySelector('.ttl small').textContent='All years · all events';
+  (S.me?Promise.resolve():loadInit()).then(function(){return A('api_artistsDb',{});}).then(function(r){window._adb=r;drawArtistDb();}).catch(function(e){$('main').innerHTML='<div class="empty">'+ic('lock')+'<p>'+esc(errMsg(e))+'</p></div>';});}
+function drawArtistDb(){var r=window._adb,all=r.artists,f=S.adb||(S.adb={q:'',st:'',cat:'',yr:''});
+  var uniq=function(fn){var o={};all.forEach(function(a){[].concat(fn(a)).forEach(function(v){if(v)o[v]=1;});});return Object.keys(o).sort();};
+  var l=all.filter(function(a){return (!f.st||a.state===f.st)&&(!f.cat||a.category===f.cat||a.events.some(function(e){return e.category===f.cat;}))&&(!f.yr||a.events.some(function(e){return e.year===f.yr;}))&&(!f.q||[a.fullName,a.username,a.mobile,a.email,a.city,a.state].join(' ').toLowerCase().indexOf(f.q.toLowerCase())>=0);});
+  var sel=function(k,lab,vals){return '<select style="width:auto" onchange="S.adb.'+k+'=this.value;drawArtistDb()"><option value="">'+lab+'</option>'+vals.map(function(v){return '<option '+(f[k]===v?'selected':'')+'>'+esc(v)+'</option>';}).join('')+'</select>';};
+  $('main').innerHTML='<h1 class="hello" style="font-size:32px">Artists <b>Database</b></h1><p class="sub" style="margin:4px 0 14px">'+all.length+' artists across all events and years.'+(r.canEdit?'':' View only.')+'</p>'+
+  '<div class="row" style="flex-wrap:wrap;margin-bottom:12px"><input placeholder="Search name, mobile, email, city" value="'+esc(f.q)+'" oninput="S.adb.q=this.value;clearTimeout(window._aq);window._aq=setTimeout(drawArtistDb,300)" style="flex:1;min-width:200px">'+
+  sel('st','All states',uniq(function(a){return a.state;}))+sel('cat','All categories',uniq(function(a){return [a.category].concat(a.events.map(function(e){return e.category;}));}))+sel('yr','All years',uniq(function(a){return a.events.map(function(e){return e.year;});}))+'</div>'+
+  (l.length?'<div class="card" style="padding:0;overflow:auto"><table class="tbl"><tr><th></th><th>Artist</th><th>State / City</th><th>Category</th><th>Events</th><th>Contact</th></tr>'+l.map(function(a){var i=all.indexOf(a);
+    return '<tr class="click" onclick="dbProfile('+i+')"><td style="width:46px">'+avatar(a)+'</td><td><b style="font-weight:500">'+esc(a.fullName)+'</b><div class="mut">@'+esc(a.username)+'</div></td><td>'+esc([a.state,a.city].filter(Boolean).join(' / '))+'</td><td>'+esc(a.category||(a.events[0]||{}).category||'')+'</td><td><div class="tags">'+a.events.slice(0,3).map(function(e){return '<span class="bdg t-'+(SG[e.stage]||SG.registered)[1]+'" title="'+esc(e.eventName)+'">'+esc(e.year)+' · '+esc((SG[e.stage]||SG.registered)[0].split(' ·')[0])+'</span>';}).join('')+'</div></td><td style="white-space:nowrap">'+esc(a.mobile||'')+'<div class="mut">'+esc(a.email||'')+'</div></td></tr>';}).join('')+'</table></div>':'<div class="empty">'+ic('palette')+'<p>No artists found.</p></div>');}
+function dbProfile(i){var a=window._adb.artists[i],can=window._adb.canEdit;
+  sheet('Artist profile','<div class="row" style="margin-bottom:12px">'+avatar(a,'lg')+'<div class="grow"><b style="font-size:18px">'+esc(a.fullName)+'</b><div class="mut">@'+esc(a.username)+' · '+esc([a.city,a.state].filter(Boolean).join(', '))+'</div></div>'+(can?'<button class="btn sm" onclick="dbEdit('+i+')">'+ic('edit')+'Edit</button>':'')+'</div>'+
+  '<div class="card"><div class="kv"><div>Mobile</div><div>'+(a.mobile?'<a href="tel:'+esc(a.mobile)+'">'+esc(a.mobile)+'</a> · <a target="_blank" rel="noopener" href="'+waLink(a.mobile,'')+'">WhatsApp</a>':'—')+'</div><div>Email</div><div>'+esc(a.email||'—')+'</div><div>Category</div><div>'+esc(a.category||'—')+'</div><div>Instagram</div><div>'+esc(a.instagram||'—')+'</div><div>Joined</div><div>'+esc(fmtDate(String(a.createdAt||'').slice(0,10)))+'</div></div></div>'+
+  (a.bio?'<p class="sub" style="white-space:pre-wrap">'+esc(a.bio)+'</p>':'')+(a.artworks.length?'<div class="gal" style="margin-bottom:12px">'+a.artworks.map(function(x){return '<div class="gi" onclick="viewImg(\''+x+'\')"><div class="im"><img src="'+img(x)+'"></div></div>';}).join('')+'</div>':'')+
+  (a.links?'<div class="card"><b>Artwork links</b>'+a.links.split(/[\s,]+/).filter(function(x){return /^https?:/.test(x);}).map(function(u,k){return '<div><a target="_blank" rel="noopener" href="'+esc(u)+'">Open artwork '+(k+1)+' ↗</a></div>';}).join('')+'</div>':'')+
+  '<h3 style="margin-top:14px">Events</h3><div class="card" style="padding:2px 14px">'+(a.events.length?a.events.map(function(e){return '<div class="li"><div class="grow"><b>'+esc(e.eventName)+'</b><span class="mut">'+esc(e.year)+(e.category?' · '+esc(e.category):'')+(e.artTitle?' · '+esc(e.artTitle):'')+(e.source==='import'?' · Google Form':'')+'</span></div>'+sgPill(e.stage)+'</div>';}).join(''):'<div class="mut" style="padding:10px 0">Not registered in any event yet.</div>')+'</div>');}
+function dbEdit(i){var a=window._adb.artists[i];
+  sheet('Edit artist','<div class="row">'+avatar(a,'lg')+'<label class="btn sm" style="margin:0">Change photo<input type="file" accept="image/*" class="hide" id="db_ph" onchange="this.parentNode.firstChild.textContent=\'Photo selected\'"></label></div>'+
+  '<label class="req">Full name</label><input id="db_n" value="'+esc(a.fullName)+'"><div class="two"><div><label>Mobile</label><input id="db_m" inputmode="tel" value="'+esc(a.mobile)+'"></div><div><label>Email</label><input id="db_e" type="email" value="'+esc(a.email)+'"></div></div>'+
+  '<div class="two"><div><label>State</label><input id="db_s" list="states" value="'+esc(a.state)+'"></div><div><label>City</label><input id="db_c" value="'+esc(a.city)+'"></div></div>'+
+  '<div class="two"><div><label>Category</label><input id="db_cat" value="'+esc(a.category)+'"></div><div><label>Instagram</label><input id="db_ig" value="'+esc(a.instagram)+'"></div></div><label>Bio</label><textarea id="db_b">'+esc(a.bio)+'</textarea>'+statesList()+
+  '<div class="err" id="err"></div><button class="btn p full" style="margin-top:14px" onclick="dbSave('+i+',this)">Save</button>');}
+function dbSave(i,b){var a=window._adb.artists[i];busy(b,1);var f=fileOf('db_ph');
+  (f?readImg(f,600):Promise.resolve('')).then(function(ph){return A('api_editArtist',{userId:a.userId,photo:ph||undefined,fields:{fullName:$('db_n').value,mobile:$('db_m').value,email:$('db_e').value,state:$('db_s').value,city:$('db_c').value,category:$('db_cat').value,instagram:$('db_ig').value,bio:$('db_b').value}});})
+  .then(function(r){window._adb=r;closeSheet();toast('Artist saved');drawArtistDb();var k=r.artists.map(function(x){return x.userId;}).indexOf(a.userId);if(k>=0)dbProfile(k);}).catch(function(e){busy(b,0);$('err').textContent=errMsg(e);});}
 
 /* ---- start ---- */
 if(S.token){var ci=cacheGet('init');if(ci){S.programs=ci.programs;S.events=ci.events;S.cats=ci.cats;}A('api_me',{}).then(function(m){S.me=m;var t=document.querySelector('.top');if(t&&!S.ev&&parts()[0]===''){drawHome();}}).catch(function(){});}
