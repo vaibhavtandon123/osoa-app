@@ -68,7 +68,7 @@ a{color:var(--acc)}
 .tc:hover{box-shadow:0 6px 20px rgba(0,0,0,.09)}.tc:active{transform:scale(.99)}
 .tc .tags{display:flex;flex-wrap:wrap;gap:4px}.tags{display:flex;flex-wrap:wrap;gap:5px}
 .tc .tt{font-size:16px;line-height:1.3;font-weight:500}.tc .td{color:var(--sub);font-size:13px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.tc .tf{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--sub);margin-top:2px}.tc .tf span{display:inline-flex;align-items:center;gap:3px}.tc .tf svg{width:13px;height:13px}
+.tc .tf{display:flex;align-items:center;gap:6px 10px;font-size:12px;color:var(--sub);margin-top:2px;flex-wrap:wrap}.tc .tf .grow{min-width:60px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tc .tf span{white-space:nowrap}.tc .tf span{display:inline-flex;align-items:center;gap:3px}.tc .tf svg{width:13px;height:13px}
 .tc.hot{background:linear-gradient(135deg,var(--acc),color-mix(in srgb,var(--acc) 70%,#ff8a00));border-color:transparent;color:#fff}
 .tc.hot .td,.tc.hot .tf,.tc.hot .tf .red{color:rgba(255,255,255,.9)}.tc.hot .bdg{background:rgba(255,255,255,.22);color:#fff}.tc.hot .bar{background:rgba(255,255,255,.3)}.tc.hot .bar i{background:#fff}
 .tc.isdone .tt{text-decoration:line-through;opacity:.6}
@@ -284,6 +284,19 @@ textarea{min-height:84px;resize:vertical}
 .fdark .bh .nm{font-size:14px}.fdark .bh .pc{font-size:13px;opacity:.8}.fdark .bh .bar{grid-column:1/-1;margin:4px 0 0;height:6px;background:rgba(255,255,255,.12)}.fdark .bh .am{grid-column:1/-1;font-size:12px;opacity:.65}
 .btn.wht{background:#fff;color:#111;border-color:#fff}
 .tbl.tx td{font-size:14px}
+.tc.pr-urgent{background:linear-gradient(135deg,#ef4444,#d62e2e);color:#fff;border-color:transparent}
+.tc.pr-high{background:linear-gradient(135deg,#f59e3b,#ea7a17);color:#fff;border-color:transparent}
+.tc.pr-medium{background:linear-gradient(135deg,#fcd34d,#f5b82e);color:#2b2104;border-color:transparent}
+.tc.pr-low{background:#fff;color:#17171c}
+.tc.pr-urgent .td,.tc.pr-urgent .tf,.tc.pr-high .td,.tc.pr-high .tf{color:rgba(255,255,255,.92)}
+.tc.pr-medium .td,.tc.pr-medium .tf{color:rgba(43,33,4,.78)}
+.tc.pr-urgent .bdg,.tc.pr-high .bdg{background:rgba(255,255,255,.24);color:#fff;box-shadow:none}
+.tc.pr-medium .bdg{background:rgba(255,255,255,.45);color:#2b2104;box-shadow:none}
+.tc.pr-urgent .bar,.tc.pr-high .bar,.tc.pr-medium .bar{background:rgba(255,255,255,.35)}.tc.pr-urgent .bar i,.tc.pr-high .bar i{background:#fff}.tc.pr-medium .bar i{background:#2b2104}
+.tc.pr-urgent .tf .red,.tc.pr-high .tf .red{color:#fff;font-weight:700}.tc.pr-medium .tf .red{color:#b91c1c;font-weight:700}
+.tc.pr-urgent .av,.tc.pr-high .av,.tc.pr-medium .av{background:rgba(255,255,255,.35);color:inherit}
+.tc.isdone{opacity:.6}
+[data-theme=dark] .tc.pr-low{background:var(--card);color:var(--txt)}
 </style>
 </head>
 <body>
@@ -291,6 +304,7 @@ textarea{min-height:84px;resize:vertical}
 <script>
 /* ===================== OSOA Desk — frontend ===================== */
 var VERSIONS=[
+  {v:'2.2.1',d:'16 Nov 2026',s:'Task cards coloured by priority',t:'Each task card is now filled with its priority colour: Urgent red, High orange, Medium yellow, Low white.'},
   {v:'2.2.0',d:'16 Nov 2026',s:'New Finance design, priority colours',t:'Finance has a new Financial Overview: total balance with cash and bank, income, expenses and net cards with change %, income breakdown, spending chart and budget heads. Income and expenses are now together in Transactions. Period filter (whole event, this month, last 7 days). Task priority colours: Urgent red, High orange, Medium yellow, Low white.'},
   {v:'2.1.2',d:'16 Nov 2026',s:'Cleaner, lighter typography',t:'Lighter, cleaner text style with a large "Hello, name" greeting.'},
   {v:'2.1.1',d:'16 Nov 2026',s:'Light theme by default',t:'The app now opens in the light theme (dark is still one tap away).'},
@@ -817,7 +831,7 @@ function overdue(t){if(!t.due||t.status==='done'||t.status==='cant')return false
 function dueTxt(t){if(!t.due)return '';var d=new Date(t.due+'T00:00:00'),n=new Date();n.setHours(0,0,0,0);var diff=Math.round((d-n)/864e5);
   var s=diff===0?'Today':diff===1?'Tomorrow':diff===-1?'Yesterday':fmtDate(t.due).replace(/ \d{4}$/,'');return s+(t.dueTime?', '+t.dueTime:'');}
 function taskCard(t,hot){var cl=t.checklist||[],cd=cl.filter(function(x){return x.done;}).length,a=t.assignee;
-  return '<div class="tc'+(hot?' hot':'')+(t.status==='done'?' isdone':'')+'" '+(canUpdTask(t)?'draggable="true" ondragstart="event.dataTransfer.setData(\'text\',\''+t.taskId+'\')"':'')+' onclick="openTask(\''+t.taskId+'\')">'+
+  return '<div class="tc pr-'+(t.priority||'medium')+(t.status==='done'?' isdone':'')+'" '+(canUpdTask(t)?'draggable="true" ondragstart="event.dataTransfer.setData(\'text\',\''+t.taskId+'\')"':'')+' onclick="openTask(\''+t.taskId+'\')">'+
   '<div class="tags">'+tsPill(t.status)+prPill(t.priority)+(t.teamName?'<span class="bdg t-gray">'+esc(t.teamName)+'</span>':'')+'</div>'+
   '<b class="tt">'+esc(t.title)+'</b>'+(t.detail?'<div class="td">'+esc(t.detail)+'</div>':'')+
   (t.status!=='todo'&&t.status!=='done'||t.progress?'<div class="bar" style="margin:8px 0 2px;height:6px"><i style="width:'+(t.progress||0)+'%"></i></div>':'')+
