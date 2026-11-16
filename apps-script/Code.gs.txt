@@ -1,5 +1,5 @@
 /*************************************************************
- * OSOA DESK  —  Code.gs  (backend)   v2.6.0
+ * OSOA DESK  —  Code.gs  (backend)   v2.7.0
  * Google Apps Script web app. Data in a Google Sheet.
  * Drive folder: My Apps / OSOA Desk / ...
  *
@@ -9,7 +9,7 @@
  *   (first time after this update Google asks for permission once — Allow)
  *************************************************************/
 
-var APP_VERSION = '2.6.0';
+var APP_VERSION = '2.7.0';
 var APP_NAME    = 'OSOA Management Desk';
 
 /* ---- Super admin (no password stored here; set it via "Forgot password") ---- */
@@ -28,7 +28,7 @@ var SUB_DB='1. Database', SUB_ART='2. Artworks', SUB_PHOTOS='3. Profile Photos',
 var PUBLIC_IMAGE_FOLDERS=[SUB_ART,SUB_PHOTOS,SUB_LOGOS,SUB_COVERS,SUB_TASKS];
 var SS_NAME='OSOA Desk — Database';
 var TOKEN_DAYS=30, DEVICE_DAYS=30, BACKUP_KEEP=14;
-var SCHEMA_VERSION='10';
+var SCHEMA_VERSION='11';
 
 var DEFAULT_PROGRAMS=[
   {programId:'p-osoa', name:'One State One Artist', short:'OSOA', deskName:'OSOA Desk', color:'#D4A017'},
@@ -58,7 +58,7 @@ var BADGE_CATALOG=[
 /* ============================================================
  *  WEB ENTRY  (JSON API via the Cloudflare /api proxy)
  * ========================================================== */
-var READ_ONLY={api_publicArtist:1,api_artistProfile:1,api_publicInit:1,api_eventPublic:1,api_me:1,api_eventData:1,api_image:1,api_findUsers:1,api_allUsers:1,api_profile:1,api_privateFile:1,api_taskDetail:1,api_stageHistory:1,api_artistsDb:1};
+var READ_ONLY={api_calendar:1,api_calAcks:1,api_publicArtist:1,api_artistProfile:1,api_publicInit:1,api_eventPublic:1,api_me:1,api_eventData:1,api_image:1,api_findUsers:1,api_allUsers:1,api_profile:1,api_privateFile:1,api_taskDetail:1,api_stageHistory:1,api_artistsDb:1};
 
 function doGet(){ return json_({ok:true,app:APP_NAME,version:APP_VERSION}); }
 function json_(o){ return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
@@ -100,6 +100,10 @@ var SCHEMA={
   Portfolio:['id','userId','fileId','title','medium','size','year','sort','at'],
   EventMedia:['id','eventId','userId','fileId','videoUrl','caption','addedBy','at'],
   ContactLog:['id','userId','eventId','kind','note','byUser','at'],
+  CalEntries:['id','eventId','ownerId','kind','title','note','start','end','allDay','color','audienceJSON','repeat','repeatUntil','link','location','createdAt','updatedAt'],
+  CalAcks:['id','entryId','userId','at'],
+  CalRemind:['id','entryId','userId','mins'],
+  CalSent:['id','entryId','userId','occ','at'],
   Ratings:['id','eventId','roleId','userId','stars','at'],
   Badges:['id','eventId','userId','badgeKey','label','icon','tone','note','givenBy','at'],
   Notifications:['id','eventId','userId','text','taskId','isRead','at'],
@@ -156,7 +160,7 @@ function ensureSheets_(ss){
   readAll_('Tasks').forEach(function(t){ if(t.status==='open'||!t.status) updateWhere_('Tasks','taskId',t.taskId,{status:'todo',priority:t.priority||'medium'}); });
   readAll_('Roles').forEach(function(r){ if(r.role==='artist'&&!r.stage) updateWhere_('Roles','roleId',r.roleId,{stage:stageOf_(r),emailedStage:stageOf_(r),source:'app'}); });
   readAll_('Expenses').forEach(function(x){ if(!x.status) updateWhere_('Expenses','expId',x.expId,{status:'paid',kind:'expense',account:'bank',mode:'Bank',requestedBy:x.addedBy,paidAt:x.addedAt}); });
-  ensureBackupTrigger_();
+  ensureBackupTrigger_(); ensureCalTrigger_();
 }
 
 /* ============================================================
@@ -1356,6 +1360,143 @@ function api_saveArtistServices(p){
   var out=api_eventData({token:p.token,eventId:p.eventId});
   if(roleOf_(me,p.eventId)==='admin'){ var ee=find_('Events','eventId',p.eventId); out.cert={released:T_(ee.certReleased),fileId:ee.certFileId||'',layout:jo_(ee.certLayoutJSON)}; }
   return out;
+}
+
+/* ---- Calendar v2.7: admin reminders & important updates (gold), personal entries, auto entries, reminders ---- */
+var ADMIN_GOLD='#D4A017';
+var CAL_COLORS=['#3b82f6','#22c55e','#8b5cf6','#ec4899','#14b8a6','#f97316','#ef4444','#6b7280'];
+function ensureCalTrigger_(){
+  try{ var props=PropertiesService.getScriptProperties(); if(props.getProperty('CAL_TRIGGER')) return;
+    if(!ScriptApp.getProjectTriggers().some(function(t){return t.getHandlerFunction()==='calendarReminders';})) ScriptApp.newTrigger('calendarReminders').timeBased().everyMinutes(15).create();
+    props.setProperty('CAL_TRIGGER','1'); }catch(e){}
+}
+function calDate_(s){ return new Date(String(s).length<=10?s+'T00:00:00+05:30':String(s).slice(0,16)+':00+05:30'); }
+function calFmt_(d){ return Utilities.formatDate(d,'Asia/Kolkata',"yyyy-MM-dd'T'HH:mm"); }
+// occurrences of an entry that start between from and to (Date objects)
+function calOccurrences_(e,from,to){
+  var st=calDate_(e.start), out=[], until=e.repeatUntil?calDate_(String(e.repeatUntil).slice(0,10)+'T23:59'):null, d=new Date(st.getTime()), n=0;
+  if(!e.repeat){ if(st>=from&&st<=to) out.push(st); return out; }
+  while(d<=to && n<1000 && (!until||d<=until)){
+    if(d>=from) out.push(new Date(d.getTime()));
+    if(e.repeat==='daily') d.setDate(d.getDate()+1); else if(e.repeat==='weekly') d.setDate(d.getDate()+7); else if(e.repeat==='monthly') d.setMonth(d.getMonth()+1); else break;
+    n++;
+  }
+  return out;
+}
+function audienceUsers_(ev,aud){
+  aud=aud||{type:'all'}; var ids={};
+  var roles=rolesOf_(ev).filter(function(r){return r.status==='approved'||(r.role==='artist'&&r.status==='pending');});
+  if(aud.type==='team'){ var tids=aud.teamIds||[]; teamsOf_(ev).forEach(function(t){ if(tids.indexOf(t.teamId)>=0&&t.headId) ids[t.headId]=1; });
+    readAll_('TeamMembers').forEach(function(m){ if(m.eventId===ev&&tids.indexOf(m.teamId)>=0) ids[m.userId]=1; }); }
+  else if(aud.type==='role'){ roles.forEach(function(r){ if(r.role===aud.role&&(r.role!=='artist'||r.status==='approved')) ids[r.userId]=1; }); }
+  else if(aud.type==='people'){ (aud.userIds||[]).forEach(function(u){ ids[u]=1; }); }
+  else { roles.forEach(function(r){ ids[r.userId]=1; }); }
+  return Object.keys(ids);
+}
+function canSeeEntry_(me,e,role){
+  if(e.kind==='personal') return e.ownerId===me.userId;
+  if(role==='admin'||e.ownerId===me.userId) return true;
+  return audienceUsers_(e.eventId,jo_(e.audienceJSON)).indexOf(me.userId)>=0;
+}
+function calOut_(e,me,role,acks,rem){
+  var o={id:e.id,kind:e.kind,title:e.title,note:e.note,start:e.start,end:e.end,allDay:T_(e.allDay),color:e.kind==='personal'?(e.color||CAL_COLORS[0]):ADMIN_GOLD,repeat:e.repeat||'',repeatUntil:e.repeatUntil||'',
+    link:e.link||'',location:e.location||'',mine:e.ownerId===me.userId,canEdit:e.ownerId===me.userId||(e.kind!=='personal'&&role==='admin'),remind:rem[e.id]||''};
+  var ow=user_(e.ownerId)||{}; o.ownerName=ow.fullName||'';
+  if(e.kind!=='personal'){ var aud=jo_(e.audienceJSON); o.audience=aud; o.acked=acks.some(function(a){return a.entryId===e.id&&a.userId===me.userId;});
+    if(role==='admin'&&e.kind==='important'){ var who=audienceUsers_(e.eventId,aud); o.ackCount=acks.filter(function(a){return a.entryId===e.id&&who.indexOf(a.userId)>=0;}).length; o.audienceCount=who.length; } }
+  return o;
+}
+function api_calendar(p){
+  var me=userByToken_(p.token), ev=p.eventId, role=roleOf_(me,ev); if(!role) throw 'You do not have access to this event.';
+  var e=find_('Events','eventId',ev), acks=readAll_('CalAcks'), rem={};
+  readAll_('CalRemind').forEach(function(r){ if(r.userId===me.userId) rem[r.entryId]=r.mins; });
+  var entries=readAll_('CalEntries').filter(function(x){return x.eventId===ev&&canSeeEntry_(me,x,role);}).map(function(x){return calOut_(x,me,role,acks,rem);});
+  var auto=[];
+  if(e.startDate) auto.push({id:'ev',kind:'event',title:e.name,start:e.startDate,end:e.endDate||e.startDate,allDay:true,note:[e.venue,e.city].filter(Boolean).join(', ')});
+  scheduleOf_(ev).forEach(function(s){ if(/^\d{4}-\d\d-\d\d$/.test(s.day)) auto.push({id:'s-'+s.itemId,kind:'schedule',title:s.title,start:s.day,time:s.time||'',allDay:true,note:s.detail||''}); });
+  if(role==='admin'||role==='volunteer'){ var myT=myTeamIds_(me,ev);
+    readAll_('Tasks').forEach(function(t){ if(t.eventId!==ev||!t.due||t.status==='done') return;
+      if(t.assignedTo===me.userId||(!t.assignedTo&&t.teamId&&myT.indexOf(t.teamId)>=0)) auto.push({id:'t-'+t.taskId,kind:'task',title:t.title,start:String(t.due).slice(0,10)+(t.dueTime?'T'+t.dueTime:''),allDay:!t.dueTime,taskId:t.taskId}); }); }
+  var cs=canSelect_(me,ev);
+  rolesOf_(ev).forEach(function(r){ if(r.role!=='artist'||!r.interviewAt) return; if(!(cs||r.userId===me.userId)) return; var u=user_(r.userId)||{};
+    auto.push({id:'i-'+r.roleId,kind:'interview',title:(r.userId===me.userId?'Your interview':'Interview: '+u.fullName),start:String(r.interviewAt).slice(0,16),allDay:false,roleId:cs?r.roleId:''}); });
+  return {entries:entries,auto:auto,canAdmin:role==='admin',colors:CAL_COLORS,gold:ADMIN_GOLD,me:me.userId};
+}
+function api_saveCalEntry(p){
+  var me=userByToken_(p.token), ev=p.eventId, role=roleOf_(me,ev); if(!role) throw 'You do not have access to this event.';
+  var x=p.entry||{}, kind=String(x.kind||'personal'); if(['personal','reminder','important'].indexOf(kind)<0) throw 'Unknown entry type.';
+  if(kind!=='personal'&&role!=='admin') throw 'Only admins can add reminders and important updates for others.';
+  var title=String(x.title||'').trim(); if(!title) throw 'Please enter a title.';
+  if(!/^\d{4}-\d\d-\d\d(T\d\d:\d\d)?$/.test(String(x.start||''))) throw 'Please choose a date.';
+  if(x.end && !/^\d{4}-\d\d-\d\d(T\d\d:\d\d)?$/.test(String(x.end))) throw 'Please check the end time.';
+  if(x.end && calDate_(x.end)<calDate_(x.start)) throw 'The end must be after the start.';
+  var color=''; if(kind==='personal'){ color=String(x.color||CAL_COLORS[0]).toLowerCase(); if(color===ADMIN_GOLD.toLowerCase()) throw 'Gold is reserved for admin entries. Please pick another colour.'; if(CAL_COLORS.indexOf(color)<0) color=CAL_COLORS[0]; }
+  var rep=String(x.repeat||''); if(rep&&['daily','weekly','monthly'].indexOf(rep)<0) rep='';
+  var link=String(x.link||'').trim(); if(link&&!/^https?:\/\//.test(link)) link='https://'+link;
+  var aud={type:'all'}; if(kind!=='personal'){ var a=x.audience||{}; aud.type=['all','team','role','people'].indexOf(a.type)>=0?a.type:'all';
+    if(aud.type==='team'){ aud.teamIds=(a.teamIds||[]).filter(function(id){return teamsOf_(ev).some(function(t){return t.teamId===id;});}); if(!aud.teamIds.length) throw 'Choose at least one team.'; }
+    if(aud.type==='role'){ aud.role=a.role==='artist'?'artist':'volunteer'; }
+    if(aud.type==='people'){ aud.userIds=[]; String(a.usernames||'').split(/[\s,]+/).filter(Boolean).forEach(function(k){ aud.userIds.push(userByKey_(k).userId); }); if(!aud.userIds.length) throw 'Add at least one username.'; } }
+  var row={kind:kind,title:title.slice(0,150),note:String(x.note||'').slice(0,2000),start:x.start,end:x.end||'',allDay:String(x.start).length===10?'TRUE':'FALSE',color:color,audienceJSON:JSON.stringify(aud),
+    repeat:rep,repeatUntil:rep?String(x.repeatUntil||'').slice(0,10):'',link:link.slice(0,500),location:String(x.location||'').trim().slice(0,300),updatedAt:now_()};
+  var id=x.id, isNew=!id;
+  if(id){ var ex=find_('CalEntries','id',id); if(!ex||ex.eventId!==ev) throw 'Entry not found.';
+    if(!(ex.ownerId===me.userId||(ex.kind!=='personal'&&role==='admin'))) throw 'You cannot edit this entry.';
+    if((ex.kind==='personal')!==(kind==='personal')) throw 'A personal entry cannot be changed into an admin entry (or the other way). Create a new one instead.';
+    updateWhere_('CalEntries','id',id,row); }
+  else{ id=uid_('ce'); row.id=id; row.eventId=ev; row.ownerId=me.userId; row.createdAt=now_(); appendRow_('CalEntries',row); }
+  if(x.remind!==undefined) setRemind_(id,me.userId,x.remind);
+  if(kind!=='personal'){ log_(ev,me,isNew?'Calendar entry added':'Calendar entry updated',title);
+    if(isNew){ var who=audienceUsers_(ev,aud); who.forEach(function(u){ if(u!==me.userId) notify_(ev,u,(kind==='important'?'⚠️ Important: ':'📅 Reminder: ')+title+' — '+String(x.start).replace('T',' '),''); }); } }
+  return api_calendar({token:p.token,eventId:ev});
+}
+function setRemind_(entryId,userId,mins){
+  var m=String(mins||''); if(m&&['15','60','1440'].indexOf(m)<0) m='';
+  var ex=readAll_('CalRemind').filter(function(r){return r.entryId===entryId&&r.userId===userId;})[0];
+  if(!m){ if(ex) deleteWhere_('CalRemind','id',ex.id); return; }
+  if(ex) updateWhere_('CalRemind','id',ex.id,{mins:m}); else appendRow_('CalRemind',{id:uid_('cr'),entryId:entryId,userId:userId,mins:m});
+}
+function api_setCalRemind(p){
+  var me=userByToken_(p.token), e=find_('CalEntries','id',p.id); if(!e) throw 'Entry not found.';
+  if(!canSeeEntry_(me,e,roleOf_(me,e.eventId))) throw 'You do not have access to this entry.';
+  setRemind_(e.id,me.userId,p.mins); return api_calendar({token:p.token,eventId:e.eventId});
+}
+function api_deleteCalEntry(p){
+  var me=userByToken_(p.token), e=find_('CalEntries','id',p.id); if(!e) throw 'Entry not found.';
+  if(!(e.ownerId===me.userId||(e.kind!=='personal'&&roleOf_(me,e.eventId)==='admin'))) throw 'You cannot delete this entry.';
+  deleteWhere_('CalEntries','id',e.id);
+  readAll_('CalRemind').filter(function(r){return r.entryId===e.id;}).forEach(function(r){ deleteWhere_('CalRemind','id',r.id); });
+  readAll_('CalAcks').filter(function(r){return r.entryId===e.id;}).forEach(function(r){ deleteWhere_('CalAcks','id',r.id); });
+  if(e.kind!=='personal') log_(e.eventId,me,'Calendar entry deleted',e.title);
+  return api_calendar({token:p.token,eventId:e.eventId});
+}
+function api_ackCalEntry(p){
+  var me=userByToken_(p.token), e=find_('CalEntries','id',p.id); if(!e||e.kind!=='important') throw 'Entry not found.';
+  if(!canSeeEntry_(me,e,roleOf_(me,e.eventId))) throw 'You do not have access to this entry.';
+  if(!readAll_('CalAcks').some(function(a){return a.entryId===e.id&&a.userId===me.userId;})) appendRow_('CalAcks',{id:uid_('ca'),entryId:e.id,userId:me.userId,at:now_()});
+  return api_calendar({token:p.token,eventId:e.eventId});
+}
+function api_calAcks(p){
+  var me=userByToken_(p.token), e=find_('CalEntries','id',p.id); if(!e) throw 'Entry not found.'; need_(me,e.eventId,['admin']);
+  var acks=readAll_('CalAcks').filter(function(a){return a.entryId===e.id;}), who=audienceUsers_(e.eventId,jo_(e.audienceJSON));
+  return who.map(function(u){ var x=user_(u)||{}, a=acks.filter(function(k){return k.userId===u;})[0]; return {userId:u,name:x.fullName||'',seen:!!a,at:a?a.at:''}; })
+    .sort(function(a,b){return (a.seen-b.seen)||String(a.name).localeCompare(String(b.name));});
+}
+// time trigger (every 15 min): email + in-app reminders
+function calendarReminders(){
+  var now=new Date(), from=new Date(now.getTime()-60*1000), sent={}, n=0;
+  readAll_('CalSent').forEach(function(s){ sent[s.entryId+'|'+s.userId+'|'+s.occ]=1; });
+  readAll_('CalRemind').forEach(function(r){
+    var e=find_('CalEntries','id',r.entryId); if(!e) return; var mins=num_(r.mins); if(!mins) return;
+    // occurrences whose reminder time falls in the last ~16 minutes or is due now
+    var occ=calOccurrences_(e,new Date(now.getTime()+(mins-16)*60000),new Date(now.getTime()+mins*60000));
+    occ.forEach(function(o){ var key=r.entryId+'|'+r.userId+'|'+calFmt_(o); if(sent[key]||o<from) return;
+      var u=user_(r.userId); if(!u) return; var ev=find_('Events','eventId',e.eventId)||{}, when=e.allDay==='TRUE'?Utilities.formatDate(o,'Asia/Kolkata','d MMM yyyy'):Utilities.formatDate(o,'Asia/Kolkata','d MMM yyyy, h:mm a');
+      notify_(e.eventId,u.userId,'⏰ '+e.title+' — '+when,'');
+      if(u.email) mail_(u.email,'Reminder: '+e.title,'Hello '+u.fullName+',\n\nThis is your reminder for:\n\n'+e.title+'\n'+when+(e.location?'\nLocation: '+e.location:'')+(e.link?'\nLink: '+e.link:'')+(e.note?'\n\n'+e.note:'')+'\n\n— '+(ev.name||APP_NAME));
+      appendRow_('CalSent',{id:uid_('cs'),entryId:r.entryId,userId:r.userId,occ:calFmt_(o),at:now_()}); sent[key]=1; n++; });
+  });
+  return n;
 }
 
 /* ---- Notifications ---- */
