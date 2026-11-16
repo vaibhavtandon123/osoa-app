@@ -1,5 +1,5 @@
 /*************************************************************
- * OSOA DESK  —  Code.gs  (backend)   v2.0.0
+ * OSOA DESK  —  Code.gs  (backend)   v2.1.0
  * Google Apps Script web app. Data in a Google Sheet.
  * Drive folder: My Apps / OSOA Desk / ...
  *
@@ -9,7 +9,7 @@
  *   (first time after this update Google asks for permission once — Allow)
  *************************************************************/
 
-var APP_VERSION = '2.0.0';
+var APP_VERSION = '2.1.0';
 var APP_NAME    = 'OSOA Desk';
 
 /* ---- Super admin (no password stored here; set it via "Forgot password") ---- */
@@ -24,11 +24,11 @@ var DEV_EMAILS = ['contact@vaibhavtandon.com'];
 var ROOT_FOLDER='My Apps', APP_FOLDER='OSOA Desk';
 var SUB_DB='1. Database', SUB_ART='2. Artworks', SUB_PHOTOS='3. Profile Photos',
     SUB_LOGOS='4. Logos', SUB_COVERS='5. Event Covers', SUB_REPORTS='6. Reports', SUB_BILLS='7. Bills (private)',
-    SUB_BACKUPS='8. Backups', SUB_AADHAAR='9. Aadhaar (private)';
-var PUBLIC_IMAGE_FOLDERS=[SUB_ART,SUB_PHOTOS,SUB_LOGOS,SUB_COVERS];
+    SUB_BACKUPS='8. Backups', SUB_AADHAAR='9. Aadhaar (private)', SUB_TASKS='10. Task Files';
+var PUBLIC_IMAGE_FOLDERS=[SUB_ART,SUB_PHOTOS,SUB_LOGOS,SUB_COVERS,SUB_TASKS];
 var SS_NAME='OSOA Desk — Database';
 var TOKEN_DAYS=30, DEVICE_DAYS=30, BACKUP_KEEP=14;
-var SCHEMA_VERSION='5';
+var SCHEMA_VERSION='6';
 
 var DEFAULT_PROGRAMS=[
   {programId:'p-osoa', name:'One State One Artist', short:'OSOA', deskName:'OSOA Desk', color:'#D4A017'},
@@ -41,11 +41,21 @@ var ART_CATEGORIES=['Painting','Sketching','Sculpture','Digital Art','Folk Art',
 var SECTIONS=['artists','finance','tasks','people'];
 var INCOME_KINDS=['sponsor','donation','registration','grant','adopt'];
 var PAY_MODES=['Cash','UPI','Bank','Cheque'];
+var TASK_STATUSES=['todo','progress','partial','blocked','cant','done'];
+var TASK_PRIORITIES=['low','medium','high','urgent'];
+/* Badges an admin can give (key, label, emoji, tone) — admins can also type a custom one */
+var BADGE_CATALOG=[
+  {key:'creative',label:'Creative Mind',icon:'🎨',tone:'purple'},{key:'hardworker',label:'Hard Worker',icon:'💪',tone:'orange'},
+  {key:'star',label:'Star Volunteer',icon:'⭐',tone:'gold'},{key:'solver',label:'Problem Solver',icon:'🧩',tone:'blue'},
+  {key:'teamplayer',label:'Team Player',icon:'🤝',tone:'green'},{key:'earlybird',label:'Early Bird',icon:'🌅',tone:'peach'},
+  {key:'leader',label:'Leader in Making',icon:'🚀',tone:'blue'},{key:'crowd',label:'Crowd Favourite',icon:'💖',tone:'pink'},
+  {key:'rising',label:'Rising Talent',icon:'🌱',tone:'green'},{key:'reliable',label:'Most Reliable',icon:'🛡️',tone:'gray'}
+];
 
 /* ============================================================
  *  WEB ENTRY  (JSON API via the Cloudflare /api proxy)
  * ========================================================== */
-var READ_ONLY={api_publicInit:1,api_eventPublic:1,api_me:1,api_eventData:1,api_image:1,api_findUsers:1,api_allUsers:1,api_profile:1,api_privateFile:1};
+var READ_ONLY={api_publicInit:1,api_eventPublic:1,api_me:1,api_eventData:1,api_image:1,api_findUsers:1,api_allUsers:1,api_profile:1,api_privateFile:1,api_taskDetail:1};
 
 function doGet(){ return json_({ok:true,app:APP_NAME,version:APP_VERSION}); }
 function json_(o){ return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
@@ -79,7 +89,10 @@ var SCHEMA={
   Programs:['programId','name','short','deskName','color','logoId','sort'],
   Events:['eventId','programId','name','startDate','endDate','time','venue','city','state','mapUrl','contactName','contactPhone','about','coverId','status','isPublic','regOpen','createdBy','createdAt','budgetTotal','budgetJSON','approvalLimit'],
   Roles:['roleId','eventId','userId','role','status','category','bio','artworkJSON','artTitle','checkedIn','checkedInAt','checkedInBy','note','createdAt','decidedBy','decidedAt','preferredTeamId'],
-  Tasks:['taskId','eventId','title','detail','assignedTo','due','status','createdBy','createdAt','doneAt','teamId'],
+  Tasks:['taskId','eventId','title','detail','assignedTo','due','status','createdBy','createdAt','doneAt','teamId','priority','dueTime','progress','statusNote','checklistJSON','updatedAt','updatedBy'],
+  TaskUpdates:['id','taskId','eventId','userId','kind','status','progress','text','filesJSON','at'],
+  Badges:['id','eventId','userId','badgeKey','label','icon','tone','note','givenBy','at'],
+  Notifications:['id','eventId','userId','text','taskId','isRead','at'],
   Teams:['teamId','eventId','name','headId','sort','createdBy','createdAt'],
   TeamMembers:['id','teamId','eventId','userId','addedBy','addedAt'],
   Announcements:['annId','eventId','title','body','audience','createdBy','createdAt'],
@@ -130,6 +143,7 @@ function ensureSheets_(ss){
   // legacy: volunteers/admins added before v2 had status "active"
   readAll_('Roles').forEach(function(r){ if(r.status==='active') updateWhere_('Roles','roleId',r.roleId,{status:'approved'}); });
   // legacy: expenses before v2 were already paid
+  readAll_('Tasks').forEach(function(t){ if(t.status==='open'||!t.status) updateWhere_('Tasks','taskId',t.taskId,{status:'todo',priority:t.priority||'medium'}); });
   readAll_('Expenses').forEach(function(x){ if(!x.status) updateWhere_('Expenses','expId',x.expId,{status:'paid',kind:'expense',account:'bank',mode:'Bank',requestedBy:x.addedBy,paidAt:x.addedAt}); });
   ensureBackupTrigger_();
 }
@@ -227,6 +241,7 @@ function api_signup(p){
   if(String(p.password).length<6) throw 'Password must be at least 6 characters.';
   if(digits_(p.mobile).length<10) throw 'Please enter a valid 10-digit mobile number.';
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(p.email||'').trim())) throw 'Please enter a valid email.';
+  if(!String(p.state||'').trim()||!String(p.city||'').trim()) throw 'Please enter your state and city.';
   if(!p.terms) throw 'Please accept the terms to continue.';
   if(type==='volunteer') validateVolunteer_(p,true,!!p.photo,!!p.aadhaarImage);
   var users=readAll_('Users');
@@ -492,6 +507,10 @@ function api_eventData(p){
       all=all.filter(function(a){return memIds[a.actorId]||memIds[a.subjectId];}); }
     out.activity=all.slice(-150).reverse();
   }
+  out.badges=badgesMap_(ev); out.badgeCatalog=BADGE_CATALOG;
+  var nt=readAll_('Notifications').filter(function(n){return n.userId===me.userId&&n.eventId===ev;});
+  out.notifications=nt.slice(-40).reverse().map(function(n){return {id:n.id,text:n.text,taskId:n.taskId,isRead:T_(n.isRead),at:n.at};});
+  out.unread=nt.filter(function(n){return !T_(n.isRead);}).length;
   if(sec.finance){ out.finance=financeOut_(e); out.finance.canSetBudget=(role==='admin'); out.finance.isAdmin=(role==='admin'); }
   else out.myExpenses=readAll_('Expenses').filter(function(x){return x.eventId===ev&&x.requestedBy===me.userId;}).map(expOut_);
   return out;
@@ -504,7 +523,6 @@ function roleOut_(r,full){
   if(full){ o.mobile=u.mobile; o.email=u.email; o.note=r.note; o.decidedAt=r.decidedAt; }
   return o;
 }
-function taskOut_(t){ var u=t.assignedTo?user_(t.assignedTo):null, tm=t.teamId?find_('Teams','teamId',t.teamId):null; var o={}; SCHEMA.Tasks.forEach(function(k){o[k]=t[k];}); o.assignedName=u?u.fullName:(tm?tm.name+' team':'Everyone'); return o; }
 
 /* ---- Person profile (who sees what) ---- */
 function api_profile(p){
@@ -517,6 +535,7 @@ function api_profile(p){
   o.teams=tm.filter(Boolean);
   if(admin||lead||(ev&&hasSection_(me,ev,'people'))){ o.mobile=u.mobile; o.email=u.email; }
   if(admin||lead){ ['dob','address','bloodGroup','tshirt','skills','emName','emRelation','emMobile'].forEach(function(k){o[k]=u[k];}); o.lastLogin=u.lastLogin; o.createdAt=u.createdAt; }
+  o.badges=(badgesMap_(ev)[u.userId])||[]; o.canGiveBadge=!!(ev && roleOf_(me,ev)==='admin');
   o.canViewAadhaar=!!(admin && u.aadhaarFileId); o.level=admin?'admin':(lead?'lead':'basic');
   return o;
 }
@@ -776,26 +795,83 @@ function api_removeTeamMember(p){
 }
 
 /* ---- Tasks / Announcements / Schedule ---- */
+/* ---- Tasks (statuses, priority, checklist, updates with files) ---- */
 function canTask_(me,ev,teamId){ return hasSection_(me,ev,'tasks') || (teamId && headTeamIds_(me,ev).indexOf(teamId)>=0); }
+function isMyTask_(me,t){ if(t.assignedTo) return t.assignedTo===me.userId; if(t.teamId) return myTeamIds_(me,t.eventId).indexOf(t.teamId)>=0 || headTeamIds_(me,t.eventId).indexOf(t.teamId)>=0; return true; }
+function canUpdateTask_(me,t){ return canTask_(me,t.eventId,t.teamId) || isMyTask_(me,t); }
+var _tuCount=null;
+function taskOut_(t){
+  var u=t.assignedTo?user_(t.assignedTo):null, tm=t.teamId?find_('Teams','teamId',t.teamId):null, c=t.createdBy?user_(t.createdBy):null;
+  if(!_tuCount){ _tuCount={}; readAll_('TaskUpdates').forEach(function(x){ _tuCount[x.taskId]=(_tuCount[x.taskId]||0)+1; }); }
+  var o={}; SCHEMA.Tasks.forEach(function(k){o[k]=t[k];});
+  o.status=(t.status==='open'||!t.status)?'todo':t.status; o.priority=t.priority||'medium'; o.progress=o.status==='done'?100:num_(t.progress);
+  o.checklist=jp_(t.checklistJSON); delete o.checklistJSON;
+  o.assignedName=u?u.fullName:(tm?tm.name+' team':'Everyone'); o.assignee=u?pubUser_(u):null; o.teamName=tm?tm.name:'';
+  o.createdName=c?c.fullName:''; o.updates=_tuCount[t.taskId]||0;
+  return o;
+}
+function notify_(ev,userId,text,taskId){ if(!userId) return; try{ appendRow_('Notifications',{id:uid_('n'),eventId:ev||'',userId:userId,text:text,taskId:taskId||'',isRead:'FALSE',at:now_()}); }catch(e){} }
+function taskPeople_(t){ // who should hear about changes: creator + assignee (or team head)
+  var ids={}; if(t.createdBy) ids[t.createdBy]=1; if(t.assignedTo) ids[t.assignedTo]=1;
+  if(t.teamId){ var tm=find_('Teams','teamId',t.teamId); if(tm&&tm.headId) ids[tm.headId]=1; }
+  return Object.keys(ids);
+}
+function saveFiles_(files,prefix){
+  return (files||[]).slice(0,5).map(function(f,i){
+    if(String(f.data||'').length>14*1024*1024) throw 'A file is too large (max 10 MB each).';
+    var id=saveFile_(SUB_TASKS,f.data,prefix+'-'+Date.now()+'-'+i+'-'+String(f.name||'file').replace(/[^\w.\-]/g,'_').slice(-60));
+    return {id:id,name:String(f.name||'file'),type:String(f.type||'')};
+  });
+}
 function api_saveTask(p){
   var me=userByToken_(p.token), t=p.task||{};
   if(!canTask_(me,p.eventId,t.teamId)) throw 'You do not have access to add this task.';
-  if(t.taskId){ var old=find_('Tasks','taskId',t.taskId); if(!old||!canTask_(me,p.eventId,old.teamId)) throw 'You cannot edit this task.'; }
-  if(!t.title) throw 'Please enter a task title.';
-  var row={title:t.title,detail:t.detail||'',assignedTo:t.assignedTo||'',due:t.due||'',teamId:t.teamId||''};
-  if(t.taskId) updateWhere_('Tasks','taskId',t.taskId,row);
-  else{ row.taskId=uid_('t'); row.eventId=p.eventId; row.status='open'; row.createdBy=me.userId; row.createdAt=now_(); appendRow_('Tasks',row); }
-  log_(p.eventId,me,'Task saved',t.title,t.assignedTo||'');
+  var old=null; if(t.taskId){ old=find_('Tasks','taskId',t.taskId); if(!old||!canTask_(me,p.eventId,old.teamId)) throw 'You cannot edit this task.'; }
+  if(!String(t.title||'').trim()) throw 'Please enter a task title.';
+  var pr=TASK_PRIORITIES.indexOf(t.priority)>=0?t.priority:'medium';
+  var cl=(t.checklist||[]).filter(function(x){return x&&String(x.text||'').trim();}).map(function(x){return {text:String(x.text).trim(),done:!!x.done};});
+  var row={title:String(t.title).trim(),detail:t.detail||'',assignedTo:t.assignedTo||'',due:t.due||'',dueTime:t.dueTime||'',teamId:t.teamId||'',priority:pr,checklistJSON:JSON.stringify(cl),updatedAt:now_(),updatedBy:me.userId};
+  var id=t.taskId;
+  if(id) updateWhere_('Tasks','taskId',id,row);
+  else{ id=uid_('t'); row.taskId=id; row.eventId=p.eventId; row.status='todo'; row.progress='0'; row.createdBy=me.userId; row.createdAt=now_(); appendRow_('Tasks',row); }
+  if(row.assignedTo && row.assignedTo!==me.userId && (!old||old.assignedTo!==row.assignedTo)) notify_(p.eventId,row.assignedTo,me.fullName+' assigned you a task: '+row.title,id);
+  else if(!row.assignedTo && row.teamId && (!old||old.teamId!==row.teamId)){ var tm=find_('Teams','teamId',row.teamId);
+    if(tm){ readAll_('TeamMembers').filter(function(m){return m.teamId===tm.teamId&&m.userId!==me.userId;}).forEach(function(m){ notify_(p.eventId,m.userId,'New task for '+tm.name+': '+row.title,id); }); } }
+  log_(p.eventId,me,old?'Task edited':'Task created',row.title,row.assignedTo||'');
   return api_eventData({token:p.token,eventId:p.eventId});
 }
-function api_setTaskDone(p){
-  var me=userByToken_(p.token), t=find_('Tasks','taskId',p.taskId); if(!t) throw 'Not found.';
+var STATUS_TEXT={todo:'To Do',progress:'In Progress',partial:'Partially Done',blocked:'Needs Help',cant:"Can't Complete",done:'Done'};
+function api_updateTask(p){
+  var me=userByToken_(p.token), t=find_('Tasks','taskId',p.taskId); if(!t) throw 'Task not found.';
   need_(me,t.eventId,['admin','volunteer']);
-  if(!canTask_(me,t.eventId,t.teamId)){ var myT=myTeamIds_(me,t.eventId);
-    if(t.assignedTo ? t.assignedTo!==me.userId : (t.teamId && myT.indexOf(t.teamId)<0)) throw 'This task is assigned to someone else.'; }
-  updateWhere_('Tasks','taskId',t.taskId,{status:p.done?'done':'open',doneAt:p.done?now_():''});
-  log_(t.eventId,me,p.done?'Task done':'Task reopened',t.title);
+  if(!canUpdateTask_(me,t)) throw 'This task is assigned to someone else.';
+  var st=p.status, note=String(p.note||'').trim(), patch={updatedAt:now_(),updatedBy:me.userId};
+  if(st){
+    if(TASK_STATUSES.indexOf(st)<0) throw 'Unknown status.';
+    if((st==='cant'||st==='blocked') && !note) throw 'Please write a reason.';
+    var pg=st==='done'?100:(st==='todo'?0:num_(p.progress!==undefined?p.progress:t.progress));
+    if(st==='partial' && (pg<=0||pg>=100)) throw 'Please choose how much is done (1–99%).';
+    patch.status=st; patch.progress=String(pg); patch.statusNote=note; patch.doneAt=st==='done'?now_():'';
+  }
+  if(p.checklist){ patch.checklistJSON=JSON.stringify(p.checklist.map(function(x){return {text:String(x.text||''),done:!!x.done};})); }
+  var files=saveFiles_(p.files,'task-'+t.taskId);
+  updateWhere_('Tasks','taskId',t.taskId,patch);
+  if(st||note||files.length){
+    _tuCount=null; appendRow_('TaskUpdates',{id:uid_('tu'),taskId:t.taskId,eventId:t.eventId,userId:me.userId,kind:st?'status':'comment',status:st||'',progress:st?patch.progress:'',text:note,filesJSON:JSON.stringify(files),at:now_()});
+    var msg=st?(me.fullName+' marked "'+t.title+'" as '+STATUS_TEXT[st]+(st==='partial'?' ('+patch.progress+'%)':'')+(note?': '+note:'')):(me.fullName+' commented on "'+t.title+'"'+(note?': '+note:''));
+    taskPeople_(t).filter(function(id){return id!==me.userId;}).forEach(function(id){ notify_(t.eventId,id,msg,t.taskId); });
+    if(st) log_(t.eventId,me,'Task: '+STATUS_TEXT[st],t.title+(note?' — '+note:''),t.assignedTo||'');
+  }
   return api_eventData({token:p.token,eventId:t.eventId});
+}
+function api_setTaskDone(p){ return api_updateTask({token:p.token,taskId:p.taskId,status:p.done?'done':'todo'}); }
+function api_taskDetail(p){
+  var me=userByToken_(p.token), t=find_('Tasks','taskId',p.taskId); if(!t) throw 'Task not found.';
+  need_(me,t.eventId,['admin','volunteer']);
+  if(!canTask_(me,t.eventId,t.teamId) && !isMyTask_(me,t)) throw 'You do not have access to this task.';
+  var ups=readAll_('TaskUpdates').filter(function(x){return x.taskId===t.taskId;}).map(function(x){ var u=user_(x.userId)||{};
+    return {id:x.id,kind:x.kind,status:x.status,progress:x.progress,text:x.text,files:jp_(x.filesJSON),at:x.at,user:pubUser_(u)}; });
+  return {task:taskOut_(t),updates:ups,canEdit:canTask_(me,t.eventId,t.teamId),canUpdate:canUpdateTask_(me,t)};
 }
 function api_deleteTask(p){
   var me=userByToken_(p.token), t=find_('Tasks','taskId',p.taskId); if(!t) throw 'Not found.';
@@ -803,6 +879,50 @@ function api_deleteTask(p){
   deleteWhere_('Tasks','taskId',t.taskId); log_(t.eventId,me,'Task deleted',t.title);
   return api_eventData({token:p.token,eventId:t.eventId});
 }
+
+/* ---- Notifications ---- */
+function api_markNotificationsRead(p){
+  var me=userByToken_(p.token);
+  readAll_('Notifications').filter(function(n){return n.userId===me.userId&&n.eventId===p.eventId&&!T_(n.isRead);}).forEach(function(n){ updateWhere_('Notifications','id',n.id,{isRead:'TRUE'}); });
+  return true;
+}
+
+/* ---- Badges (automatic + given by admins) ---- */
+function badgesMap_(ev){
+  var m={}, add=function(id,b){ (m[id]=m[id]||[]).push(b); };
+  readAll_('Users').forEach(function(u){
+    if(String(u.username).toLowerCase()===ADMIN_USERNAME) add(u.userId,{label:'Developer',icon:'💻',tone:'dark',auto:true});
+    if(isSuper_(u)) add(u.userId,{label:'Super Admin',icon:'👑',tone:'gold',auto:true});
+  });
+  if(ev){
+    rolesOf_(ev).forEach(function(r){ if(r.status!=='approved') return; var u=user_(r.userId); if(r.role==='admin'&&!isSuper_(u)) add(r.userId,{label:'Event Admin',icon:'🛡️',tone:'gold',auto:true});
+      if(r.role==='artist') add(r.userId,{label:'Artist',icon:'🎨',tone:'purple',auto:true}); });
+    var heads={}; teamsOf_(ev).forEach(function(t){ if(t.headId){ heads[t.headId]=1; add(t.headId,{label:'Team Lead · '+t.name,icon:'⭐',tone:'orange',auto:true}); } });
+    readAll_('TeamMembers').forEach(function(x){ if(x.eventId!==ev) return; var t=find_('Teams','teamId',x.teamId); if(t) add(x.userId,{label:t.name,icon:'👥',tone:'green',auto:true}); });
+    rolesOf_(ev).forEach(function(r){ if(r.role==='volunteer'&&r.status==='approved'&&!m[r.userId]) add(r.userId,{label:'Volunteer',icon:'🙋',tone:'blue',auto:true}); });
+    readAll_('Badges').forEach(function(b){ if(b.eventId===ev) add(b.userId,{id:b.id,label:b.label,icon:b.icon,tone:b.tone,note:b.note,given:true}); });
+  }
+  return m;
+}
+function api_giveBadge(p){
+  var me=userByToken_(p.token); need_(me,p.eventId,['admin']); var u=user_(p.userId); if(!u) throw 'Person not found.';
+  var c=BADGE_CATALOG.filter(function(b){return b.key===p.badgeKey;})[0];
+  var label=c?c.label:String(p.label||'').trim(); if(!label) throw 'Please choose or type a badge.';
+  if(label.length>30) throw 'Badge name is too long (max 30 letters).';
+  if(readAll_('Badges').some(function(b){return b.eventId===p.eventId&&b.userId===u.userId&&b.label.toLowerCase()===label.toLowerCase();})) throw u.fullName+' already has this badge.';
+  appendRow_('Badges',{id:uid_('b'),eventId:p.eventId,userId:u.userId,badgeKey:c?c.key:'custom',label:label,icon:c?c.icon:(String(p.icon||'').slice(0,4)||'🏅'),tone:c?c.tone:(p.tone||'gold'),note:String(p.note||'').trim(),givenBy:me.userId,at:now_()});
+  notify_(p.eventId,u.userId,'You received the "'+label+'" badge from '+me.fullName+'!','');
+  log_(p.eventId,me,'Badge given',label+' → '+u.fullName,u.userId);
+  return badgesMap_(p.eventId);
+}
+function api_removeBadge(p){
+  var me=userByToken_(p.token), b=find_('Badges','id',p.id); if(!b) throw 'Not found.';
+  need_(me,b.eventId,['admin']); deleteWhere_('Badges','id',b.id); var u=user_(b.userId);
+  log_(b.eventId,me,'Badge removed',b.label+' — '+(u?u.fullName:''),b.userId);
+  return badgesMap_(b.eventId);
+}
+
+/* ---- Announcements / Schedule ---- */
 function api_saveAnnouncement(p){
   var me=userByToken_(p.token), a=p.ann||{}; needSection_(me,p.eventId,'tasks');
   if(!a.title) throw 'Please enter a title.';
