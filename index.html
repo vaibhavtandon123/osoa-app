@@ -322,6 +322,7 @@ textarea{min-height:84px;resize:vertical}
 <script>
 /* ===================== OSOA Desk — frontend ===================== */
 var VERSIONS=[
+  {v:'2.7.1',d:'16 Nov 2026 · 8:28 PM',s:'Activity tab and reliable photo uploads',p:['Moved Recent Activity off the Dashboard into its own Activity tab for admins and Project Leads','Sign-up no longer loads forever: unreadable photos now show a clear message','Sign-up shows progress while preparing photos and creating the account','Any request that takes longer than 90 seconds now stops with a helpful message']},
   {v:'2.7.0',d:'16 Nov 2026 · 7:48 PM',s:'Calendar',p:['Added a full calendar that opens from the calendar icon on every screen, with Month, Week and Agenda views','Admins can post reminders and important updates in gold for everyone, a team, a role or specific people','Important updates have a Got it button, and admins can see who has seen them','Everyone can add personal entries in their own colours, with repeats and reminders by app and email','Task due dates, interviews, event days and the schedule now appear on the calendar automatically']},
   {v:'2.6.0',d:'16 Nov 2026 · 7:44 PM',s:'Artist Profile',p:['Artists can build a full profile: portfolio with details, experience, awards, art forms and social links','Every artist now has a shareable public profile page and a QR code for their name card','Added an OSOA journey timeline with event photos and videos added by volunteers','Artists can see their travel and stay details, request materials and download their certificate','Added a Verified badge, past ratings, an invite flag and a contact log for the committee']},
   {v:'2.5.0',d:'16 Nov 2026 · 7:33 PM',s:'Selection process upgrade',p:['Every committee member now rates each artist individually; the average decides the ranking','Added Review as Specialist, so one committee member can take charge of an artist','Added a screening check: link verification, photo requests and work photos uploaded by the committee','Introduced selection groups, a Ranking view and an interview checklist with verified experience and age','Added one-tap replacement of a dropped-out artist with the next backup, with emails to both']},
@@ -341,7 +342,11 @@ var APPV=VERSIONS[0].v;
 var S={token:localStorage.getItem('osoa-token')||'',me:null,programs:[],events:[],cats:[],filter:'all',ev:null,data:null,pub:null,tab:'',sub:{}};
 var $=function(id){return document.getElementById(id);};
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
-function call(fn,arg){return fetch('/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fn:fn,arg:arg})}).then(function(r){return r.json();}).then(function(d){if(d&&Object.prototype.hasOwnProperty.call(d,'e'))throw d.e;return d?d.r:null;});}
+var SLOW_MSG='This is taking too long. Please check your internet connection and try again.';
+function call(fn,arg){var ac=window.AbortController?new AbortController():null,tm=setTimeout(function(){if(ac)ac.abort();},90000);
+  return fetch('/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fn:fn,arg:arg}),signal:ac?ac.signal:undefined})
+  .catch(function(e){throw (e&&e.name==='AbortError')?SLOW_MSG:'No internet connection. Please check and try again.';})
+  .then(function(r){clearTimeout(tm);return r.json().catch(function(){throw 'The server sent an unexpected reply. Please try again in a minute.';});}).then(function(d){if(d&&Object.prototype.hasOwnProperty.call(d,'e'))throw d.e;return d?d.r:null;});}
 function A(fn,arg){arg=arg||{};arg.token=S.token;return call(fn,arg).catch(function(e){if(/log in again|expired/i.test(String(e))){logoutLocal();go('#/');}throw e;});}
 function img(id){return '/img?id='+encodeURIComponent(id);}
 function toast(t,bad){var d=document.createElement('div');d.className='toast'+(bad?' bad':'');d.textContent=t;document.body.appendChild(d);setTimeout(function(){d.remove();},2800);}
@@ -407,8 +412,12 @@ function confirmBox(msg){return window.confirm(msg);}
 function skel(n){var h='';for(var i=0;i<(n||3);i++)h+='<div class="sk" style="height:'+(i?70:110)+'px;margin-bottom:12px"></div>';return h;}
 
 /* ---- image helpers ---- */
-function readImg(file,max,type){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(){var im=new Image();im.onload=function(){var w=im.width,h=im.height,s=Math.min(1,max/Math.max(w,h));var c=document.createElement('canvas');c.width=Math.round(w*s);c.height=Math.round(h*s);
-  var x=c.getContext('2d');if(type!=='image/png'){x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);}x.drawImage(im,0,0,c.width,c.height);res(c.toDataURL(type||'image/jpeg',.85));};im.onerror=function(){rej('Could not read that image.');};im.src=r.result;};r.readAsDataURL(file);});}
+var PHOTO_ERR='Could not read this photo. Please take a new photo with the camera, or choose one saved on your phone (not from Google Photos / Drive cloud).';
+function readImg(file,max,type){var p=new Promise(function(res,rej){if(!file)return rej('No photo chosen.');if(file.size===0)return rej(PHOTO_ERR);if(file.size>40*1024*1024)return rej('This photo is too large (over 40 MB). Please choose a smaller one.');
+  if(file.type&&!/^image\//.test(file.type))return rej('Please choose a photo (JPG or PNG), not a '+(file.type.split('/')[1]||'document')+' file.');
+  var r=new FileReader();r.onerror=r.onabort=function(){rej(PHOTO_ERR);};r.onload=function(){var im=new Image();im.onload=function(){var w=im.width,h=im.height,s=Math.min(1,max/Math.max(w,h));var c=document.createElement('canvas');c.width=Math.round(w*s);c.height=Math.round(h*s);
+  var x=c.getContext('2d');if(type!=='image/png'){x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);}x.drawImage(im,0,0,c.width,c.height);try{res(c.toDataURL(type||'image/jpeg',.85));}catch(e){rej(PHOTO_ERR);}};im.onerror=function(){rej(PHOTO_ERR);};im.src=r.result;};try{r.readAsDataURL(file);}catch(e){rej(PHOTO_ERR);}});
+  return Promise.race([p,new Promise(function(res,rej){setTimeout(function(){rej(PHOTO_ERR);},30000);})]);}
 function fileOf(id){var el=$(id);return el&&el.files&&el.files[0];}
 
 /* ---- routing ---- */
@@ -506,8 +515,9 @@ function volPayload(){return {dob:$('s_dob').value,bloodGroup:$('s_blood').value
 function doSignup(b){$('err').textContent='';busy(b,1);var vol=_suType==='volunteer';
   var p={accountType:_suType,fullName:$('s_name').value,username:$('s_user').value,password:$('s_pass').value,mobile:$('s_mob').value,email:$('s_email').value,state:$('s_state').value,city:$('s_city').value,terms:$('s_terms').checked};
   if(vol){Object.assign(p,volPayload());p.aadhaarNumber=$('s_aad').value;p.consent=$('s_consent').checked;}
-  Promise.all([vol&&fileOf('s_photo')?readImg(fileOf('s_photo'),600):'',vol&&fileOf('s_aadimg')?readImg(fileOf('s_aadimg'),1600):'']).then(function(r){p.photo=r[0]||undefined;p.aadhaarImage=r[1]||undefined;return call('api_signup',p);})
-  .then(afterAuth).catch(function(e){busy(b,0);$('err').textContent=errMsg(e);});}
+  var say=function(m){b.innerHTML='<span class="spin"></span> '+m;};if(vol)say('Preparing photos…');
+  Promise.all([vol&&fileOf('s_photo')?readImg(fileOf('s_photo'),600).catch(function(e){throw 'Profile photo: '+e;}):'',vol&&fileOf('s_aadimg')?readImg(fileOf('s_aadimg'),1600).catch(function(e){throw 'Aadhaar photo: '+e;}):'']).then(function(r){p.photo=r[0]||undefined;p.aadhaarImage=r[1]||undefined;say('Creating your account…');return call('api_signup',p);})
+  .then(afterAuth).catch(function(e){busy(b,0);var m=errMsg(e);if(/already (taken|registered)/i.test(m))m+=' If you just tried to sign up, your account may already be created — try logging in.';$('err').textContent=m;$('err').scrollIntoView({block:'center',behavior:'smooth'});});}
 
 /* ============ EVENTS LIST ============ */
 function loadInit(){return call('api_publicInit',{token:S.token}).then(function(r){S.programs=r.programs;S.events=r.events;S.cats=r.categories;S.me=r.me;if(r.me)cacheSet('me',r.me);if(!r.me&&S.token)logoutLocal();cacheSet('init',{programs:r.programs,events:r.events,cats:r.categories});return r;});}
@@ -601,8 +611,8 @@ function drawGuestShell(){refreshShell();document.body.classList.remove('side');
 function badgeCount(d){var lead=d.role==='admin'||(d.myHeadTeams||[]).length;return (lead?(d.joinRequests||[]).length+(d.accessRequests||[]).length:0)+(d.selection&&d.selection.canVerify?(d.artists||[]).filter(function(a){return a.stagePending;}).length:0);}
 function finBadge(d){return d.finance?d.finance.expenses.filter(function(x){return x.status==='requested'&&(!x.needsAdmin||d.role==='admin');}).length:0;}
 function tabsFor(d){var role=d.role,heads=(d.myHeadTeams||[]).length,t=[];
-  if(role==='admin'){t=[['dash','chart','Dashboard','m'],['selection','star','Selection','m'],['artists','check','Check-in','d'],['teams','sitemap','Teams','m'],['tasks','list','Tasks','d'],['finance','wallet','Finance','m',finBadge(d)],['requests','inbox','Requests','d',badgeCount(d)],['more','more','More','m',badgeCount(d)]];}
-  else if(role==='volunteer'){t=[['home','home','Home','m']];if(d.selection)t.push(['selection','star','Selection','d']);t=t.concat([['artists','check','Check-in','d'],['tasks','list','Tasks','m'],['teams','sitemap','Teams','m'],['finance','wallet','Finance','m',finBadge(d)],['requests','inbox','Requests','d',badgeCount(d)],['more','more','More','m',badgeCount(d)]]);}
+  if(role==='admin'){t=[['dash','chart','Dashboard','m'],['selection','star','Selection','m'],['artists','check','Check-in','d'],['teams','sitemap','Teams','m'],['tasks','list','Tasks','d'],['finance','wallet','Finance','m',finBadge(d)],['requests','inbox','Requests','d',badgeCount(d)],['activity','activity','Activity','d'],['more','more','More','m',badgeCount(d)]];}
+  else if(role==='volunteer'){t=[['home','home','Home','m']];if(d.selection)t.push(['selection','star','Selection','d']);t=t.concat([['artists','check','Check-in','d'],['tasks','list','Tasks','m'],['teams','sitemap','Teams','m'],['finance','wallet','Finance','m',finBadge(d)],['requests','inbox','Requests','d',badgeCount(d)]].concat(heads?[['activity','activity','Activity','d']]:[]).concat([['more','more','More','m',badgeCount(d)]]));}
   else if(role==='artist')t=[['ahome','home','My status','m'],['aprofile','user','My profile','m'],['updates','bell','Updates','m'],['teams','sitemap','Teams','m'],['schedule','cal','Schedule','m'],['public','eye','Event','m']];
   return t;}
 function drawEvent(){refreshShell();var d=S.data,t=tabsFor(d);
@@ -988,7 +998,6 @@ function drawDash(){var d=S.data,a=d.artists||[],ap=a.filter(function(x){return 
   main+='<div class="row" style="margin-top:22px"><h2 class="grow" style="margin:0">Ongoing Tasks</h2><a href="javascript:setTab(\'tasks\')" class="mut">View all</a></div><div style="margin-top:10px">'+ongoing(d.tasks||[])+'</div>';
   main+='<div class="dtwo" style="margin-top:6px">'+(f?'<div><h2>Spending by head</h2><div class="card">'+donut(f.summary.byHead,money(f.summary.paid),f.total?'of '+money(f.total):'spent')+'</div></div>':'')+
     '<div><h2>Artists by state</h2><div class="card" style="padding:2px 14px">'+(Object.keys(st).length?Object.keys(st).sort(function(x,y){return st[y]-st[x];}).slice(0,8).map(function(k){return '<div class="li"><div class="grow">'+esc(k)+'</div><b>'+st[k]+'</b></div>';}).join(''):'<div class="mut" style="padding:10px 0">No approved artists yet.</div>')+'</div></div></div>';
-  main+='<div class="row" style="margin-top:22px"><h2 class="grow" style="margin:0">Recent activity</h2><a href="javascript:setTab(\'activity\')" class="mut">See all</a></div>'+activityHtml((d.activity||[]).slice(0,8));
   $('main').innerHTML='<div class="dgrid"><div>'+main+'</div><aside>'+'<div class="card">'+miniCal(e)+'<button class="btn sm full" style="margin-top:10px" onclick="openCalendar()">'+ic('cal')+'Open calendar</button></div>'+myTasksBox()+teamBox()+'</aside></div>';}
 
 function activityHtml(l){return l.length?'<div class="card" style="padding:2px 14px;margin-top:10px">'+l.map(function(x){return '<div class="li"><div class="grow"><b style="font-weight:600">'+esc(x.action)+'</b><span class="mut">'+esc(x.detail)+(x.detail?' · ':'')+esc(x.actorName)+'</span></div><span class="mut" title="'+esc(fmtTime(x.at))+'">'+ago(x.at)+'</span></div>';}).join('')+'</div>':'<div class="mut" style="margin-top:10px">No activity yet.</div>';}
@@ -1002,7 +1011,7 @@ function drawMore(){var d=S.data,sup=S.me.isSuper,admin=d.role==='admin',head=(d
   it.push(['inbox','Requests',"setTab('requests')",badgeCount(d),'phone']);
   if(admin||(d.selection&&d.selection.canMove))it.push(['users','Artists Database (all years)',"go('#/artistdb')"]);
   it.push(['bell','Announcements',"setTab('announcements')"],['cal','Schedule',canTasks?'schedPage()':"setTab('schedule')"]);
-  if(admin||head)it.push(['activity','Activity',"setTab('activity')"]);
+  if(admin||head)it.push(['activity','Activity',"setTab('activity')",0,'phone']);
   if(admin)it.push(['edit','Event settings','editEvent(S.data.event)'],['doc','Certificates & material options','artistServices()']);
   it.push(['eye','Public page (guest view)',"setTab('public')"]);
   if(admin)it.push(['doc','Export report to Google Doc','exportDoc()']);
