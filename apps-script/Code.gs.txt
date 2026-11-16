@@ -1,5 +1,5 @@
 /*************************************************************
- * OSOA DESK  —  Code.gs  (backend)   v2.7.0
+ * OSOA DESK  —  Code.gs  (backend)   v2.8.0
  * Google Apps Script web app. Data in a Google Sheet.
  * Drive folder: My Apps / OSOA Desk / ...
  *
@@ -9,7 +9,7 @@
  *   (first time after this update Google asks for permission once — Allow)
  *************************************************************/
 
-var APP_VERSION = '2.7.0';
+var APP_VERSION = '2.8.0';
 var APP_NAME    = 'OSOA Management Desk';
 
 /* ---- Super admin (no password stored here; set it via "Forgot password") ---- */
@@ -24,11 +24,11 @@ var DEV_EMAILS = ['contact@vaibhavtandon.com'];
 var ROOT_FOLDER='My Apps', APP_FOLDER='OSOA Desk';
 var SUB_DB='1. Database', SUB_ART='2. Artworks', SUB_PHOTOS='3. Profile Photos',
     SUB_LOGOS='4. Logos', SUB_COVERS='5. Event Covers', SUB_REPORTS='6. Reports', SUB_BILLS='7. Bills (private)',
-    SUB_BACKUPS='8. Backups', SUB_AADHAAR='9. Aadhaar (private)', SUB_TASKS='10. Task Files';
+    SUB_BACKUPS='8. Backups', SUB_AADHAAR='9. Aadhaar (private)', SUB_TASKS='10. Task Files', SUB_READABLE='11. Readable Data';
 var PUBLIC_IMAGE_FOLDERS=[SUB_ART,SUB_PHOTOS,SUB_LOGOS,SUB_COVERS,SUB_TASKS];
 var SS_NAME='OSOA Desk — Database';
 var TOKEN_DAYS=30, DEVICE_DAYS=30, BACKUP_KEEP=14;
-var SCHEMA_VERSION='11';
+var SCHEMA_VERSION='12';
 
 var DEFAULT_PROGRAMS=[
   {programId:'p-osoa', name:'One State One Artist', short:'OSOA', deskName:'OSOA Desk', color:'#D4A017'},
@@ -58,7 +58,7 @@ var BADGE_CATALOG=[
 /* ============================================================
  *  WEB ENTRY  (JSON API via the Cloudflare /api proxy)
  * ========================================================== */
-var READ_ONLY={api_calendar:1,api_calAcks:1,api_publicArtist:1,api_artistProfile:1,api_publicInit:1,api_eventPublic:1,api_me:1,api_eventData:1,api_image:1,api_findUsers:1,api_allUsers:1,api_profile:1,api_privateFile:1,api_taskDetail:1,api_stageHistory:1,api_artistsDb:1};
+var READ_ONLY={api_alerts:1,api_readableInfo:1,api_calendar:1,api_calAcks:1,api_publicArtist:1,api_artistProfile:1,api_publicInit:1,api_eventPublic:1,api_me:1,api_eventData:1,api_image:1,api_findUsers:1,api_allUsers:1,api_profile:1,api_privateFile:1,api_taskDetail:1,api_stageHistory:1,api_artistsDb:1};
 
 function doGet(){ return json_({ok:true,app:APP_NAME,version:APP_VERSION}); }
 function json_(o){ return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
@@ -106,7 +106,7 @@ var SCHEMA={
   CalSent:['id','entryId','userId','occ','at'],
   Ratings:['id','eventId','roleId','userId','stars','at'],
   Badges:['id','eventId','userId','badgeKey','label','icon','tone','note','givenBy','at'],
-  Notifications:['id','eventId','userId','text','taskId','isRead','at'],
+  Notifications:['id','eventId','userId','text','taskId','isRead','at','kind','link'],
   Teams:['teamId','eventId','name','headId','sort','createdBy','createdAt','requireVerify'],
   TeamMembers:['id','teamId','eventId','userId','addedBy','addedAt','position'],
   Announcements:['annId','eventId','title','body','audience','createdBy','createdAt'],
@@ -160,7 +160,7 @@ function ensureSheets_(ss){
   readAll_('Tasks').forEach(function(t){ if(t.status==='open'||!t.status) updateWhere_('Tasks','taskId',t.taskId,{status:'todo',priority:t.priority||'medium'}); });
   readAll_('Roles').forEach(function(r){ if(r.role==='artist'&&!r.stage) updateWhere_('Roles','roleId',r.roleId,{stage:stageOf_(r),emailedStage:stageOf_(r),source:'app'}); });
   readAll_('Expenses').forEach(function(x){ if(!x.status) updateWhere_('Expenses','expId',x.expId,{status:'paid',kind:'expense',account:'bank',mode:'Bank',requestedBy:x.addedBy,paidAt:x.addedAt}); });
-  ensureBackupTrigger_(); ensureCalTrigger_();
+  ensureBackupTrigger_(); ensureCalTrigger_(); ensureReadableTrigger_();
 }
 
 /* ============================================================
@@ -241,11 +241,12 @@ function tok_(p){ return typeof p==='string'?p:(p&&p.token); }
 
 var REQUIRED_VOL=['fullName','mobile','email','state','city','dob','address','bloodGroup','tshirt','skills','emName','emRelation','emMobile','aadhaarNumber'];
 function validateVolunteer_(p,isNew,hasPhoto,hasAadhaarImg){
-  var miss=REQUIRED_VOL.filter(function(k){return !String(p[k]||'').trim();});
+  var miss=REQUIRED_VOL.filter(function(k){return (k!=='aadhaarNumber'||aadhaarOn_()) && !String(p[k]||'').trim();});
   if(miss.length) throw 'Please fill all fields (missing: '+miss.join(', ')+').';
   if(digits_(p.mobile).length<10 || digits_(p.emMobile).length<10) throw 'Please enter valid 10-digit mobile numbers.';
-  if(String(p.aadhaarNumber).replace(/\D/g,'').length!==12) throw 'Aadhaar number must be 12 digits.';
   if(isNew && !hasPhoto) throw 'Please add your photo.';
+  if(!aadhaarOn_()) return;
+  if(String(p.aadhaarNumber).replace(/\D/g,'').length!==12) throw 'Aadhaar number must be 12 digits.';
   if(isNew && !hasAadhaarImg) throw 'Please upload a photo of your Aadhaar card.';
   if(isNew && !p.consent) throw 'Please accept the Aadhaar consent.';
 }
@@ -268,8 +269,8 @@ function api_signup(p){
     photoId:p.photo?saveFile_(SUB_PHOTOS,p.photo,'profile-'+id+'.jpg'):''};
   if(type==='volunteer'){
     ['dob','address','bloodGroup','tshirt','skills','emName','emRelation'].forEach(function(k){ row[k]=String(p[k]).trim(); });
-    row.emMobile=digits_(p.emMobile); row.aadhaarNumber=String(p.aadhaarNumber).replace(/\D/g,'');
-    row.aadhaarFileId=saveFile_(SUB_AADHAAR,p.aadhaarImage,'aadhaar-'+id+'.jpg'); row.consentAt=now_();
+    row.emMobile=digits_(p.emMobile);
+    if(aadhaarOn_()){ row.aadhaarNumber=String(p.aadhaarNumber).replace(/\D/g,''); row.aadhaarFileId=saveFile_(SUB_AADHAAR,p.aadhaarImage,'aadhaar-'+id+'.jpg'); row.consentAt=now_(); }
   }
   appendRow_('Users',row); log_('',{userId:id,fullName:row.fullName},'Account created',type,id);
   return api_login({username:u,password:p.password});
@@ -355,6 +356,7 @@ function api_updateProfile(p){
     if(p.aadhaarNumber) merged.aadhaarNumber=p.aadhaarNumber;
     validateVolunteer_(merged,false);
   }
+  if(!aadhaarOn_()){ delete p.aadhaarNumber; delete p.aadhaarImage; }
   if(p.aadhaarNumber){ var a=String(p.aadhaarNumber).replace(/\D/g,''); if(a.length!==12) throw 'Aadhaar number must be 12 digits.'; patch.aadhaarNumber=a; }
   if(p.aadhaarImage){ patch.aadhaarFileId=saveFile_(SUB_AADHAAR,p.aadhaarImage,'aadhaar-'+me.userId+'-'+Date.now()+'.jpg'); patch.consentAt=now_(); }
   if(p.photo) patch.photoId=saveFile_(SUB_PHOTOS,p.photo,'profile-'+me.userId+'-'+Date.now()+'.jpg');
@@ -470,12 +472,21 @@ function eventOut_(e){
   o.artistCount=appr.length; o.stateCount=Object.keys(st).length;
   return o;
 }
+/* ---- App settings (v2.8) ---- */
+function aadhaarOn_(){ return PropertiesService.getScriptProperties().getProperty('AADHAAR_ON')==='1'; }
+function appSettings_(){ return {aadhaarOn:aadhaarOn_()}; }
+function api_setAppSetting(p){
+  var me=userByToken_(p.token); needSuper_(me);
+  if(p.key==='aadhaarOn'){ PropertiesService.getScriptProperties().setProperty('AADHAAR_ON',p.value?'1':'0'); log_('',me,p.value?'Aadhaar turned ON':'Aadhaar turned OFF',''); }
+  else throw 'Unknown setting.';
+  return {settings:appSettings_()};
+}
 function api_publicInit(p){
   var me=optUser_(p&&p.token), sup=isSuper_(me), mine={};
   if(me) readAll_('Roles').forEach(function(r){ if(r.userId===me.userId) mine[r.eventId]=1; });
   var evs=readAll_('Events').filter(function(e){ return sup || !(String(e.isPublic).toUpperCase()==='FALSE') || mine[e.eventId]; })
     .map(eventOut_).sort(function(a,b){ return String(b.startDate).localeCompare(String(a.startDate)); });
-  return {version:APP_VERSION,programs:programsList_(),events:evs,categories:ART_CATEGORIES,me:me?meInfo_(me):null};
+  return {version:APP_VERSION,programs:programsList_(),events:evs,categories:ART_CATEGORIES,me:me?meInfo_(me):null,settings:appSettings_()};
 }
 function api_eventPublic(p){
   var e=find_('Events','eventId',p.eventId); if(!e) throw 'Event not found.';
@@ -539,7 +550,7 @@ function api_eventData(p){
   }
   out.badges=badgesMap_(ev); out.badgeCatalog=BADGE_CATALOG;
   var nt=readAll_('Notifications').filter(function(n){return n.userId===me.userId&&n.eventId===ev;});
-  out.notifications=nt.slice(-40).reverse().map(function(n){return {id:n.id,text:n.text,taskId:n.taskId,isRead:T_(n.isRead),at:n.at};});
+  out.notifications=nt.slice(-40).reverse().map(function(n){return {id:n.id,text:n.text,taskId:n.taskId,isRead:T_(n.isRead),at:n.at,kind:n.kind||'',link:n.link||''};});
   out.unread=nt.filter(function(n){return !T_(n.isRead);}).length;
   if(sec.finance){ out.finance=financeOut_(e); out.finance.canSetBudget=(role==='admin'); out.finance.isAdmin=(role==='admin'); }
   else out.myExpenses=readAll_('Expenses').filter(function(x){return x.eventId===ev&&x.requestedBy===me.userId;}).map(expOut_);
@@ -576,11 +587,12 @@ function api_profile(p){
   if(admin||lead||(ev&&hasSection_(me,ev,'people'))){ o.mobile=u.mobile; o.email=u.email; }
   if(admin||lead){ ['dob','address','bloodGroup','tshirt','skills','emName','emRelation','emMobile'].forEach(function(k){o[k]=u[k];}); o.lastLogin=u.lastLogin; o.createdAt=u.createdAt; }
   o.badges=(badgesMap_(ev)[u.userId])||[]; o.canGiveBadge=!!(ev && roleOf_(me,ev)==='admin');
-  o.canViewAadhaar=!!(admin && u.aadhaarFileId); o.level=admin?'admin':(lead?'lead':'basic');
+  o.canViewAadhaar=!!(admin && u.aadhaarFileId && aadhaarOn_()); o.level=admin?'admin':(lead?'lead':'basic');
   return o;
 }
 function api_viewAadhaar(p){
   var me=userByToken_(p.token), u=user_(p.userId); if(!u) throw 'Not found.';
+  if(!aadhaarOn_()) throw 'Aadhaar is switched off in this app.';
   if(!(u.userId===me.userId || adminsPerson_(me,u.userId))) throw 'Only admins can view Aadhaar.';
   if(u.userId!==me.userId) log_(p.eventId||'',me,'Viewed Aadhaar',u.fullName,u.userId);
   return {number:u.aadhaarNumber,image:u.aadhaarFileId?fileData_(u.aadhaarFileId):''};
@@ -592,11 +604,13 @@ function api_requestJoin(p){
   if((me.accountType||'volunteer')!=='volunteer') throw 'This is an artist account. Use "Register as artist".';
   var ex=myRoleRow_(me,e.eventId);
   if(ex && ex.status!=='rejected') throw 'You have already sent a request for this event.';
-  if(!me.aadhaarFileId) throw 'Please complete your profile (including Aadhaar) first.';
+  if(aadhaarOn_() && !me.aadhaarFileId) throw 'Please complete your profile (including Aadhaar) first.';
   validateVolunteer_(me,false);
   if(ex) updateWhere_('Roles','roleId',ex.roleId,{role:'volunteer',status:'pending',preferredTeamId:p.teamId||'',note:p.note||''});
   else appendRow_('Roles',{roleId:uid_('r'),eventId:e.eventId,userId:me.userId,role:'volunteer',status:'pending',preferredTeamId:p.teamId||'',note:p.note||'',checkedIn:'FALSE',createdAt:now_(),artworkJSON:'[]'});
   log_(e.eventId,me,'Volunteer request',me.fullName,me.userId);
+  var tReq=p.teamId?find_('Teams','teamId',p.teamId):null;
+  alertMany_(e.eventId,eventAdminIds_(e.eventId).concat(teamsOf_(e.eventId).map(function(t){return t.headId;})),'New volunteer request: '+me.fullName+(tReq?' (wants '+tReq.name+')':''),'req_volunteer','requests',me.userId);
   var to={}; readAll_('Users').forEach(function(u){ if(isSuper_(u)&&u.email) to[u.email]=1; });
   rolesOf_(e.eventId).forEach(function(r){ if(r.role==='admin'&&r.status==='approved'){ var u=user_(r.userId); if(u&&u.email) to[u.email]=1; } });
   var t=p.teamId?find_('Teams','teamId',p.teamId):null; if(t&&t.headId){ var h=user_(t.headId); if(h&&h.email) to[h.email]=1; }
@@ -714,6 +728,8 @@ function api_requestAccess(p){
   if(readAll_('AccessRequests').some(function(r){return r.eventId===p.eventId&&r.userId===me.userId&&r.section===p.section&&r.status==='pending';})) throw 'Request already sent.';
   appendRow_('AccessRequests',{reqId:uid_('q'),eventId:p.eventId,userId:me.userId,section:p.section,reason:p.reason||'',status:'pending',createdAt:now_()});
   log_(p.eventId,me,'Asked access: '+p.section,p.reason||'',me.userId);
+  var leads=readAll_('Teams').filter(function(t){return t.eventId===p.eventId&&t.headId&&readAll_('TeamMembers').some(function(m){return m.teamId===t.teamId&&m.userId===me.userId;});}).map(function(t){return t.headId;});
+  alertMany_(p.eventId,eventAdminIds_(p.eventId).concat(leads),me.fullName+' asks for access to '+({artists:'Artists',finance:'Finance',tasks:'Tasks',people:'Teams & People'}[p.section]||p.section)+(p.reason?' — “'+String(p.reason).slice(0,80)+'”':''),'req_access','requests',me.userId);
   return api_eventData({token:p.token,eventId:p.eventId});
 }
 function api_decideAccess(p){
@@ -874,7 +890,17 @@ function taskOut_(t){
   o.createdName=c?c.fullName:''; o.updates=_tuCount[t.taskId]||0;
   return o;
 }
-function notify_(ev,userId,text,taskId){ if(!userId) return; try{ appendRow_('Notifications',{id:uid_('n'),eventId:ev||'',userId:userId,text:text,taskId:taskId||'',isRead:'FALSE',at:now_()}); }catch(e){} }
+function notify_(ev,userId,text,taskId,kind,link){ if(!userId) return; try{ appendRow_('Notifications',{id:uid_('n'),eventId:ev||'',userId:userId,text:text,taskId:taskId||'',isRead:'FALSE',at:now_(),kind:kind||'',link:link||''}); }catch(e){} }
+/* ---- Request alerts (v2.8): popup + bell for people who can approve ---- */
+function eventAdminIds_(ev){ var ids={}; readAll_('Users').forEach(function(u){ if(isSuper_(u)) ids[u.userId]=1; });
+  rolesOf_(ev).forEach(function(r){ if(r.role==='admin'&&r.status==='approved') ids[r.userId]=1; }); return Object.keys(ids); }
+function alertMany_(ev,ids,text,kind,link,exceptId){ var seen={}; ids.forEach(function(u){ if(!u||seen[u]||u===exceptId) return; seen[u]=1; notify_(ev,u,text,'',kind,link); }); }
+function api_alerts(p){
+  var me=userByToken_(p.token), ev=p.eventId;
+  var nt=readAll_('Notifications').filter(function(n){return n.userId===me.userId&&n.eventId===ev;});
+  return {unread:nt.filter(function(n){return !T_(n.isRead);}).length,
+    requests:nt.filter(function(n){return !T_(n.isRead)&&/^req_/.test(n.kind||'');}).slice(-20).map(function(n){return {id:n.id,text:n.text,kind:n.kind,link:n.link,at:n.at};})};
+}
 function taskPeople_(t){ // who should hear about changes: creator + assignee (or team head)
   var ids={}; if(t.createdBy) ids[t.createdBy]=1; if(t.assignedTo) ids[t.assignedTo]=1;
   if(t.teamId){ var tm=find_('Teams','teamId',t.teamId); if(tm&&tm.headId) ids[tm.headId]=1; }
@@ -971,7 +997,7 @@ function api_moveArtist(p){
   var t=selTeam_(r.eventId), u=user_(r.userId)||{};
   if(!selHead_(me,r.eventId) && t && T_(t.requireVerify)){
     updateWhere_('Roles','roleId',r.roleId,{stagePending:p.stage,stagePendingBy:me.userId,note:p.note||r.note||''});
-    if(t.headId) notify_(r.eventId,t.headId,me.fullName+' wants to move '+u.fullName+' to '+STAGE_NAME[p.stage]+'. Please verify.','');
+    alertMany_(r.eventId,[t.headId].concat(eventAdminIds_(r.eventId)),'Level change to verify: '+me.fullName+' wants to move '+u.fullName+' to '+STAGE_NAME[p.stage],'req_level','selection',me.userId);
     log_(r.eventId,me,'Stage proposed',u.fullName+' → '+STAGE_NAME[p.stage],r.userId);
   } else {
     if(p.note) updateWhere_('Roles','roleId',r.roleId,{note:p.note});
@@ -1499,6 +1525,114 @@ function calendarReminders(){
   return n;
 }
 
+/* ---- Readable copy of all data in Drive (v2.8): My Apps / OSOA Desk / 11. Readable Data, updated hourly ---- */
+function ensureReadableTrigger_(){
+  try{ var props=PropertiesService.getScriptProperties(); if(props.getProperty('READABLE_TRIGGER')) return;
+    if(!ScriptApp.getProjectTriggers().some(function(t){return t.getHandlerFunction()==='hourlyReadableCopy';})) ScriptApp.newTrigger('hourlyReadableCopy').timeBased().everyHours(1).create();
+    props.setProperty('READABLE_TRIGGER','1'); }catch(e){}
+}
+function hourlyReadableCopy(){ var l=LockService.getScriptLock(); if(!l.tryLock(1000)) return; try{ buildReadable_(); }finally{ l.releaseLock(); } }
+function rdTime_(s){ if(!s) return ''; var d=new Date(s); if(isNaN(d)) return String(s); return Utilities.formatDate(d,'Asia/Kolkata',String(s).length<=10?'dd MMM yyyy':'dd MMM yyyy, h:mm a'); }
+function rdName_(id){ var u=id?user_(id):null; return u?u.fullName:''; }
+function rdLink_(id){ return id?'https://drive.google.com/file/d/'+id+'/view':''; }
+function rdSafe_(s){ return String(s||'').replace(/[\\\/:*?"<>|#]/g,'-').trim().slice(0,80)||'Untitled'; }
+// open (or create) a readable spreadsheet by key inside a folder; remembers its id in script properties
+function rdFile_(key,name,folder){
+  var props=PropertiesService.getScriptProperties(), id=props.getProperty('RD:'+key), ss=null;
+  if(id){ try{ ss=SpreadsheetApp.openById(id); var f=DriveApp.getFileById(id); if(f.isTrashed&&f.isTrashed()) ss=null; else{ if(f.getName()!==name) f.setName(name); } }catch(e){ ss=null; } }
+  if(!ss){ ss=SpreadsheetApp.create(name); DriveApp.getFileById(ss.getId()).moveTo(folder); props.setProperty('RD:'+key,ss.getId()); }
+  return ss;
+}
+function rdTab_(ss,name,header,rows){
+  var sh=ss.getSheetByName(name)||ss.insertSheet(name); sh.clear();
+  var data=[header].concat(rows.length?rows:[header.map(function(_,i){return i?'':'(nothing yet)';})]);
+  data=data.map(function(r){ return header.map(function(_,i){ var v=r[i]; return v==null?'':(typeof v==='number'?v:String(v)); }); });
+  sh.getRange(1,1,data.length,header.length).setValues(data);
+  try{ sh.setFrozenRows(1); sh.getRange(1,1,1,header.length).setFontWeight('bold').setBackground('#f3e7c4'); sh.autoResizeColumns(1,Math.min(header.length,20)); }catch(e){}
+  return sh;
+}
+function rdDone_(ss,tabs){ ss.getSheets().forEach(function(s){ if(tabs.indexOf(s.getName())<0 && ss.getSheets().length>1) ss.deleteSheet(s); }); }
+function buildReadable_(){
+  var t0=Date.now(), root=subFolder_(SUB_READABLE), now=Utilities.formatDate(new Date(),'Asia/Kolkata','dd MMM yyyy, h:mm a');
+  var users=readAll_('Users'), roles=readAll_('Roles'), progs={}; readAll_('Programs').forEach(function(p){progs[p.programId]=p;});
+  // README
+  var rd=rdFile_('readme','0. READ ME — How this folder works',root);
+  rdTab_(rd,'About',['Item','Details'],[['What is this?','A readable copy of all OSOA Desk data: names instead of codes, clean dates. It is rebuilt automatically every hour.'],['Last updated',now],
+    ['Where is the live data?','My Drive › My Apps › OSOA Desk › 1. Database (the app reads and writes there). Do not edit these readable copies — changes are overwritten every hour.'],
+    ['Aadhaar','Aadhaar numbers are kept separately in My Apps › OSOA Desk › 9. Aadhaar (private) › Aadhaar — readable list.'],['Folders','One folder per event. All Accounts lists every account in the app.']]); rdDone_(rd,['About']);
+  // All accounts
+  var acc=rdFile_('accounts','All Accounts',root);
+  rdTab_(acc,'Accounts',['Name','Username','Account type','Mobile','Email','State','City','Date of birth','Blood group','T-shirt','Skills','Address','Emergency contact','Emergency relation','Emergency mobile','Main art form','Other art forms','Years of practice','Instagram','Verified artist','Invite flag','Super admin','Disabled','Created','Last login','Photo'],
+    users.map(function(u){ return [u.fullName,u.username,u.accountType||'volunteer',u.mobile,u.email,u.state,u.city,u.dob,u.bloodGroup,u.tshirt,u.skills,u.address,u.emName,u.emRelation,u.emMobile,u.category,u.artForms,u.yearsPractice,u.instagram,
+      T_(u.verified)?'Yes':'',u.inviteFlag==='again'?'Invite again':(u.inviteFlag==='no'?"Don't invite — "+u.inviteReason:''),isSuper_(u)?'Yes':'',T_(u.isDisabled)?'Yes':'',rdTime_(u.createdAt),rdTime_(u.lastLogin),rdLink_(u.photoId)]; }));
+  rdTab_(acc,'Portfolio',['Artist','Title','Medium','Size','Year','Photo'],readAll_('Portfolio').map(function(x){return [rdName_(x.userId),x.title,x.medium,x.size,x.year,rdLink_(x.fileId)];}));
+  rdTab_(acc,'Contact log',['Artist','Type','Note','By','Event','When'],readAll_('ContactLog').map(function(c){ var e=c.eventId?find_('Events','eventId',c.eventId):null; return [rdName_(c.userId),c.kind,c.note,rdName_(c.byUser),e?e.name:'',rdTime_(c.at)]; }));
+  rdDone_(acc,['Accounts','Portfolio','Contact log']);
+  // Aadhaar (separate, private folder)
+  var aa=rdFile_('aadhaar','Aadhaar — readable list',subFolder_(SUB_AADHAAR));
+  rdTab_(aa,'Aadhaar',['Name','Username','Mobile','Aadhaar number','Aadhaar photo','Consent given'],users.filter(function(u){return u.aadhaarNumber||u.aadhaarFileId;}).map(function(u){
+    var n=String(u.aadhaarNumber||''); return [u.fullName,u.username,u.mobile,n.replace(/(\d{4})(?=\d)/g,'$1 '),rdLink_(u.aadhaarFileId),rdTime_(u.consentAt)]; })); rdDone_(aa,['Aadhaar']);
+  // per event
+  readAll_('Events').forEach(function(e){
+    var ev=e.eventId, prog=progs[e.programId]||{}, fname=rdSafe_((prog.short||'Event')+' — '+e.name+' ('+String(e.startDate||'').slice(0,4)+')');
+    var folder=null, fid=PropertiesService.getScriptProperties().getProperty('RDF:'+ev);
+    if(fid){ try{ folder=DriveApp.getFolderById(fid); if(folder.getName()!==fname) folder.setName(fname); }catch(x){ folder=null; } }
+    if(!folder){ folder=root.createFolder(fname); PropertiesService.getScriptProperties().setProperty('RDF:'+ev,folder.getId()); }
+    var er=roles.filter(function(r){return r.eventId===ev;}), groups=selGroups_(e);
+    // Artists & Selection
+    var a=rdFile_('ev:'+ev+':artists','Artists & Selection',folder);
+    rdTab_(a,'Artists',['Name','Username','Mobile','Email','State','City','Art form','Selection group','Stage','Status','Committee average','Ratings','Interview date','Interview score','Experience claimed','Experience verified','Specialist','Social link check','Photos requested','Checked in','Art title','Travel & stay','Material requirements','Source','Registered','Artworks','Work photos','Artwork links'],
+      er.filter(function(r){return r.role==='artist';}).map(function(r){ var u=user_(r.userId)||{}, rt=ratingsOf_(r.roleId), tv=jo_(r.travelJSON), mt=jo_(r.materialsJSON), g=groups.filter(function(x){return x.cats.indexOf(r.category)>=0;})[0];
+        return [u.fullName,u.username,u.mobile,u.email,u.state,u.city,r.category,g?g.name:'',STAGE_NAME[stageOf_(r)]||stageOf_(r),r.status,rt.avg||'',rt.list.map(function(x){return x.name+' '+x.stars+'/5';}).join(', '),rdTime_(r.interviewAt),r.interviewScore,r.expClaimed,r.expVerified,rdName_(r.specialistId),
+          r.screenLink,T_(r.photosRequested)?'Yes':'',T_(r.checkedIn)?'Yes':'',r.artTitle,[tv.mode,tv.number,tv.pnr?'PNR '+tv.pnr:'',tv.arriveAt?'arrives '+rdTime_(tv.arriveAt):'',tv.stay,tv.room?'room '+tv.room:''].filter(Boolean).join(' · '),
+          [mt.canvas,(mt.colours||[]).join(', '),(mt.tools||[]).join(', '),mt.other].filter(Boolean).join(' · '),r.source||'app',rdTime_(r.createdAt),jp_(r.artworkJSON).map(rdLink_).join('\n'),jp_(r.workPhotosJSON).map(rdLink_).join('\n'),r.artworkLinks||'']; }));
+    rdTab_(a,'Interview answers',['Artist','Question','Answer'],(function(){ var o=[]; er.forEach(function(r){ if(r.role!=='artist') return; jp_(r.ivAnswersJSON).forEach(function(x){ if(x.a) o.push([rdName_(r.userId),x.q,x.a]); }); if(r.interviewNotes) o.push([rdName_(r.userId),'Other notes',r.interviewNotes]); }); return o; })());
+    rdTab_(a,'Stage history',['Artist','From','To','By','Verified by','Note','When'],readAll_('StageLog').filter(function(x){return x.eventId===ev;}).map(function(x){return [rdName_(x.userId),STAGE_NAME[x.fromStage]||x.fromStage,STAGE_NAME[x.toStage]||x.toStage,rdName_(x.byUser),rdName_(x.verifiedBy),x.note,rdTime_(x.at)];}));
+    rdDone_(a,['Artists','Interview answers','Stage history']);
+    // Volunteers & Teams
+    var v=rdFile_('ev:'+ev+':people','Volunteers & Teams',folder), tms=teamsOf_(ev), mem=readAll_('TeamMembers').filter(function(m){return m.eventId===ev;});
+    var teamOf=function(uid){ var l=[]; tms.forEach(function(t){ if(t.headId===uid) l.push(t.name+' (Project Lead)'); }); mem.forEach(function(m){ if(m.userId===uid){ var t=tms.filter(function(x){return x.teamId===m.teamId;})[0]; if(t) l.push(t.name+(m.position?' ('+POSITION_NAME[m.position]+')':'')); } }); return l.join(', '); };
+    rdTab_(v,'People',['Name','Username','Role','Status','Teams & positions','Mobile','Email','City','State','Checked in','Joined'],er.filter(function(r){return r.role!=='artist';}).map(function(r){ var u=user_(r.userId)||{};
+      return [u.fullName,u.username,r.role==='admin'?'Event admin':'Volunteer',r.status,teamOf(r.userId),u.mobile,u.email,u.city,u.state,T_(r.checkedIn)?'Yes':'',rdTime_(r.createdAt)]; }));
+    rdTab_(v,'Teams',['Team','Project Lead','Member','Position'],(function(){ var o=[]; tms.forEach(function(t){ var ms=mem.filter(function(m){return m.teamId===t.teamId;}); if(!ms.length) o.push([t.name,rdName_(t.headId),'','']); ms.forEach(function(m){ o.push([t.name,rdName_(t.headId),rdName_(m.userId),POSITION_NAME[m.position||'member']]); }); }); return o; })());
+    rdTab_(v,'Access given',['Person','Section','Given by','Expires','Revoked'],readAll_('SectionAccess').filter(function(g){return g.eventId===ev;}).map(function(g){return [rdName_(g.userId),g.section,rdName_(g.grantedBy),rdTime_(g.expiresAt)||'Until turned off',rdTime_(g.revokedAt)];}));
+    rdDone_(v,['People','Teams','Access given']);
+    // Tasks
+    var tk=rdFile_('ev:'+ev+':tasks','Tasks',folder);
+    rdTab_(tk,'Tasks',['Title','Team','Assigned to','Priority','Status','Progress %','Due','Detail','Created by','Created','Last update'],readAll_('Tasks').filter(function(x){return x.eventId===ev;}).map(function(x){ var tm=x.teamId?find_('Teams','teamId',x.teamId):null;
+      return [x.title,tm?tm.name:'',rdName_(x.assignedTo)||(tm?'Whole team':'Everyone'),x.priority,x.status,x.status==='done'?100:x.progress,rdTime_(x.due)+(x.dueTime?' '+x.dueTime:''),x.detail,rdName_(x.createdBy),rdTime_(x.createdAt),rdTime_(x.updatedAt)]; }));
+    rdTab_(tk,'Task updates',['Task','By','Type','Status','Note','When'],readAll_('TaskUpdates').filter(function(x){return x.eventId===ev;}).map(function(x){ var ta=find_('Tasks','taskId',x.taskId)||{}; return [ta.title||'',rdName_(x.userId),x.kind,x.status,x.text,rdTime_(x.at)]; }));
+    rdDone_(tk,['Tasks','Task updates']);
+    // Finance
+    var fn=rdFile_('ev:'+ev+':finance','Finance',folder), f=financeOut_(e);
+    rdTab_(fn,'Summary',['Item','Amount (₹)'],[['Total income',f.summary.income],['Paid out',f.summary.paid],['Approved, not yet paid',f.summary.approvedUnpaid],['Requested, waiting',f.summary.requested],['Cash balance',f.summary.cash],['Bank balance',f.summary.bank],['Budget total',f.total||'']]);
+    rdTab_(fn,'Income',['Date','Type','From','Phone','Email','Amount (₹)','Account','Mode','Artist (Adopt)','Note','Proof','Added by'],f.income.map(function(i){return [rdTime_(i.receivedOn),i.kind,i.sourceName,i.sourcePhone,i.sourceEmail,i.amount,i.account,i.mode,i.artistName,i.note,rdLink_(i.proofId),rdName_(i.createdBy)];}));
+    rdTab_(fn,'Expenses',['Date','Type','Budget head','Amount (₹)','Status','For / payee','Vendor','Team','Requested by','Approved by','Paid on','Account','Mode','Note','Reject reason','Bill'],f.expenses.map(function(x){return [rdTime_(x.date),x.kind,x.head,x.amount,x.status,x.payee,x.vendorName,x.teamName,x.requestedName,x.approvedName,rdTime_(x.paidAt),x.account,x.mode,x.note,x.rejectReason,rdLink_(x.billId)];}));
+    rdTab_(fn,'Budget',['Budget head','Budget (₹)','Spent (₹)'],(f.heads||[]).map(function(h){return [h.name,h.alloc,h.spent];}));
+    rdTab_(fn,'Vendors',['Vendor','Service','Phone','Contract (₹)','Paid (₹)','Due (₹)','Note'],(f.vendors||[]).map(function(x){return [x.name,x.service,x.phone,x.contractAmount,x.paid,x.due,x.note];}));
+    rdDone_(fn,['Summary','Income','Expenses','Budget','Vendors']);
+    // Calendar & schedule
+    var cl=rdFile_('ev:'+ev+':calendar','Calendar & Schedule',folder);
+    rdTab_(cl,'Admin calendar',['Type','Title','Start','End','Repeats','Who sees it','Location','Link','Note','Added by','Seen by'],readAll_('CalEntries').filter(function(x){return x.eventId===ev&&x.kind!=='personal';}).map(function(x){ var au=jo_(x.audienceJSON), who=audienceUsers_(ev,au), ak=readAll_('CalAcks').filter(function(k){return k.entryId===x.id;}).length;
+      return [x.kind==='important'?'Important update':'Reminder',x.title,rdTime_(x.start),rdTime_(x.end),x.repeat?x.repeat+(x.repeatUntil?' until '+rdTime_(x.repeatUntil):''):'',au.type==='all'?'Everyone':au.type==='team'?'Teams':au.type==='role'?'All '+au.role+'s':'Selected people',x.location,x.link,x.note,rdName_(x.ownerId),x.kind==='important'?ak+' of '+who.length:'']; }));
+    rdTab_(cl,'Schedule',['Day','Time','Title','Detail'],scheduleOf_(ev).map(function(s){return [rdTime_(s.day),s.time,s.title,s.detail];}));
+    rdTab_(cl,'Announcements',['Title','Message','Audience','By','When'],readAll_('Announcements').filter(function(x){return x.eventId===ev;}).map(function(x){return [x.title,x.body,x.audience,rdName_(x.createdBy),rdTime_(x.createdAt)];}));
+    rdDone_(cl,['Admin calendar','Schedule','Announcements']);
+    // Activity log
+    var lg=rdFile_('ev:'+ev+':activity','Activity log (all changes)',folder);
+    rdTab_(lg,'Activity',['When','Who','What','Details'],readAll_('Activity').filter(function(x){return x.eventId===ev;}).slice().reverse().map(function(x){return [rdTime_(x.at),x.actorName,x.action,x.detail];}));
+    rdDone_(lg,['Activity']);
+  });
+  var gl=rdFile_('activity-global','Activity log — app-wide',root);
+  rdTab_(gl,'Activity',['When','Who','What','Details'],readAll_('Activity').filter(function(x){return !x.eventId;}).slice().reverse().map(function(x){return [rdTime_(x.at),x.actorName,x.action,x.detail];})); rdDone_(gl,['Activity']);
+  PropertiesService.getScriptProperties().setProperty('READABLE_AT',new Date().toISOString());
+  return {at:now,seconds:Math.round((Date.now()-t0)/1000)};
+}
+function api_readableInfo(p){ var me=userByToken_(p.token); needSuper_(me);
+  var at=PropertiesService.getScriptProperties().getProperty('READABLE_AT'); return {lastUpdated:at?rdTime_(at):'',folderUrl:subFolder_(SUB_READABLE).getUrl(),settings:appSettings_()}; }
+function api_updateReadableNow(p){ var me=userByToken_(p.token); needSuper_(me); var r=buildReadable_(); log_('',me,'Readable copy updated',r.seconds+' s');
+  return {lastUpdated:r.at,folderUrl:subFolder_(SUB_READABLE).getUrl(),settings:appSettings_()}; }
+
 /* ---- Notifications ---- */
 function api_markNotificationsRead(p){
   var me=userByToken_(p.token);
@@ -1640,6 +1774,11 @@ function api_requestExpense(p){
   } else {
     row.expId=uid_('x'); row.eventId=p.eventId; row.status='requested'; row.requestedBy=me.userId; row.addedBy=me.userId; row.addedAt=now_(); row.settledAmount=0;
     appendRow_('Expenses',row); log_(p.eventId,me,'Expense requested',kind+' · '+x.head+' ₹'+amt);
+    var fin=[]; if(amt<=limit){ var ft=teamsOf_(p.eventId).filter(function(t){return /financ/i.test(t.name);}).map(function(t){return t.teamId;});
+      teamsOf_(p.eventId).forEach(function(t){ if(ft.indexOf(t.teamId)>=0&&t.headId) fin.push(t.headId); });
+      readAll_('TeamMembers').forEach(function(m){ if(ft.indexOf(m.teamId)>=0) fin.push(m.userId); });
+      readAll_('SectionAccess').forEach(function(g){ if(g.eventId===p.eventId&&g.section==='finance'&&!g.revokedAt&&(!g.expiresAt||new Date(g.expiresAt)>new Date())) fin.push(g.userId); }); }
+    alertMany_(p.eventId,eventAdminIds_(p.eventId).concat(fin),'Expense to approve: '+me.fullName+' — '+x.head+' ₹'+amt+(amt>limit?' (above limit, admin only)':''),'req_expense','finance',me.userId);
   }
   var d=api_eventData({token:p.token,eventId:p.eventId}); d.warnings=budgetWarn_(p.eventId,x.head,amt); return d;
 }

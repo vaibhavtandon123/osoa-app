@@ -315,6 +315,8 @@ textarea{min-height:84px;resize:vertical}
 .cweek{display:grid;grid-template-columns:repeat(7,minmax(110px,1fr));gap:6px;overflow-x:auto}.cwcol{border:1px solid var(--line,#eee);border-radius:10px;padding:6px;min-height:200px}.cwcol.today{border-color:var(--acc)}.cwh{font-weight:600;font-size:13px;margin-bottom:6px}.cwcol .cchip{white-space:normal}
 .cdot{display:inline-block;width:12px;height:12px;border-radius:50%;flex:none;vertical-align:-1px}.cdot.lg{width:18px;height:18px}.cpal{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.cpal button{width:30px;height:30px;border-radius:50%;border:3px solid transparent;cursor:pointer;padding:0}.cpal button.on{border-color:var(--txt);box-shadow:0 0 0 2px var(--card) inset}
 @media(max-width:640px){.cday{min-height:58px}.cchip{font-size:0;height:6px;padding:0;margin-bottom:2px}.cchip b{display:none}}
+.alertbg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:center;justify-content:center;padding:16px}.alertbox{background:var(--card);border-radius:18px;max-width:440px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.3);animation:pop .18s ease-out}.alertbox .ah{font-size:18px;font-weight:700;margin-bottom:10px}.alertbox .ai{display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--line,#eee)}.alertbox .ae{font-size:22px}@keyframes pop{from{transform:scale(.94);opacity:0}to{transform:none;opacity:1}}
+.switch{position:relative;display:inline-block;width:46px;height:26px;margin:0;flex:none}.switch input{opacity:0;width:0;height:0}.switch i{position:absolute;inset:0;background:#d4d4d8;border-radius:99px;transition:.2s;cursor:pointer}.switch input:checked+i{background:var(--acc)}.switch i:before{content:'';position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}.switch input:checked+i:before{transform:translateX(20px)}
 </style>
 </head>
 <body>
@@ -322,6 +324,7 @@ textarea{min-height:84px;resize:vertical}
 <script>
 /* ===================== OSOA Desk — frontend ===================== */
 var VERSIONS=[
+  {v:'2.8.0',d:'16 Nov 2026 · 8:33 PM',s:'Aadhaar switch, request popups and readable Drive copy',p:['Added an app-wide Aadhaar switch for super admins; it is now off, and existing Aadhaar stays safely hidden','New volunteer, access, expense and level-change requests now pop up for approvers within a minute','Every request alert also appears in the notification panel','Added a readable copy of all data in Google Drive (My Apps › OSOA Desk › 11. Readable Data), updated hourly','Super admins can open the Drive folder or update it instantly from App settings']},
   {v:'2.7.1',d:'16 Nov 2026 · 8:28 PM',s:'Activity tab and reliable photo uploads',p:['Moved Recent Activity off the Dashboard into its own Activity tab for admins and Project Leads','Sign-up no longer loads forever: unreadable photos now show a clear message','Sign-up shows progress while preparing photos and creating the account','Any request that takes longer than 90 seconds now stops with a helpful message']},
   {v:'2.7.0',d:'16 Nov 2026 · 7:48 PM',s:'Calendar',p:['Added a full calendar that opens from the calendar icon on every screen, with Month, Week and Agenda views','Admins can post reminders and important updates in gold for everyone, a team, a role or specific people','Important updates have a Got it button, and admins can see who has seen them','Everyone can add personal entries in their own colours, with repeats and reminders by app and email','Task due dates, interviews, event days and the schedule now appear on the calendar automatically']},
   {v:'2.6.0',d:'16 Nov 2026 · 7:44 PM',s:'Artist Profile',p:['Artists can build a full profile: portfolio with details, experience, awards, art forms and social links','Every artist now has a shareable public profile page and a QR code for their name card','Added an OSOA journey timeline with event photos and videos added by volunteers','Artists can see their travel and stay details, request materials and download their certificate','Added a Verified badge, past ratings, an invite flag and a contact log for the committee']},
@@ -339,7 +342,7 @@ var VERSIONS=[
   {v:'1.0.0',d:'15 Nov 2026 · 8:02 PM',s:'First version',p:['Launched event selection and the public guest page','Added login and artist registration','Introduced the admin dashboard and volunteer check-in','Added tasks, announcements and the event schedule']}
 ];
 var APPV=VERSIONS[0].v;
-var S={token:localStorage.getItem('osoa-token')||'',me:null,programs:[],events:[],cats:[],filter:'all',ev:null,data:null,pub:null,tab:'',sub:{}};
+var S={settings:(function(){try{return JSON.parse(localStorage.getItem('osoa-settings')||'null');}catch(x){return null;}})(),token:localStorage.getItem('osoa-token')||'',me:null,programs:[],events:[],cats:[],filter:'all',ev:null,data:null,pub:null,tab:'',sub:{}};
 var $=function(id){return document.getElementById(id);};
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 var SLOW_MSG='This is taking too long. Please check your internet connection and try again.';
@@ -489,7 +492,8 @@ var _suType='volunteer';
 function renderSignup(){
   authShell('<div class="authlogo"><h1 style="margin:6px 0 0">Create account</h1><p class="sub" style="margin:0">One account works for every event.</p></div>'+
   '<div class="seg" style="margin-bottom:12px"><button id="t_vol" onclick="setSuType(\'volunteer\')">Register as Volunteer</button><button id="t_art" onclick="setSuType(\'artist\')">Register as Artist</button></div>'+
-  '<div class="card" style="padding:18px" id="suform"></div><p style="text-align:center">Already have an account? <a href="#/">Log in</a></p>');setSuType(_suType);}
+  '<div class="card" style="padding:18px" id="suform"></div><p style="text-align:center">Already have an account? <a href="#/">Log in</a></p>');setSuType(_suType);
+  call('api_publicInit',{}).then(function(r){var was=aadOn();S.settings=r.settings||{};try{localStorage.setItem('osoa-settings',JSON.stringify(S.settings));}catch(x){}if(was!==aadOn()&&$('suform'))setSuType(_suType);}).catch(function(){});}
 function setSuType(t){_suType=t;$('t_vol').classList.toggle('on',t==='volunteer');$('t_art').classList.toggle('on',t==='artist');var vol=t==='volunteer';
   $('suform').innerHTML=(vol?'<div class="infobox" style="margin-top:0">Volunteers need admin approval for each event. All fields are required.</div>':'')+
   '<h3>Basic details</h3>'+
@@ -507,20 +511,21 @@ function volExtraFields(m){return '<h3 style="margin-top:20px">Personal details<
   '<div class="two"><div><label class="req">T-shirt size</label><select id="s_tshirt">'+opts(TSHIRT,m.tshirt,'Choose…')+'</select></div><div><label class="req">Skills</label><input id="s_skills" placeholder="Design, driving, anchoring…" value="'+esc(m.skills||'')+'"></div></div>'+
   '<h3 style="margin-top:20px">Emergency contact</h3>'+
   '<div class="three"><div><label class="req">Name</label><input id="s_emn" value="'+esc(m.emName||'')+'"></div><div><label class="req">Relation</label><input id="s_emr" placeholder="Father, Wife…" value="'+esc(m.emRelation||'')+'"></div><div><label class="req">Mobile</label><input id="s_emm" inputmode="tel" value="'+esc(m.emMobile||'')+'"></div></div>';}
-function aadhaarFields(isNew){return '<h3 style="margin-top:20px">Aadhaar</h3><div class="mut">Only event admins can see this. Every view is recorded.</div>'+
+function aadhaarFields(isNew){if(!aadOn())return '';return '<h3 style="margin-top:20px">Aadhaar</h3><div class="mut">Only event admins can see this. Every view is recorded.</div>'+
   '<div class="two"><div><label class="'+(isNew?'req':'')+'">Aadhaar number</label><input id="s_aad" inputmode="numeric" maxlength="14" oninput="fmtAad(this)" placeholder="'+(isNew?'1234 5678 9012':'Leave empty to keep')+'"></div><div><label class="'+(isNew?'req':'')+'">Aadhaar photo</label><input id="s_aadimg" type="file" accept="image/*"></div></div>'+
   (isNew?'<label style="font-weight:500;color:var(--txt)"><input type="checkbox" id="s_consent">I give my Aadhaar for identity verification for this event.</label>':'');}
 function fmtAad(el){var d=el.value.replace(/\D/g,'').slice(0,12);el.value=d.replace(/(\d{4})(?=\d)/g,'$1 ');}
 function volPayload(){return {dob:$('s_dob').value,bloodGroup:$('s_blood').value,address:$('s_addr').value,tshirt:$('s_tshirt').value,skills:$('s_skills').value,emName:$('s_emn').value,emRelation:$('s_emr').value,emMobile:$('s_emm').value};}
 function doSignup(b){$('err').textContent='';busy(b,1);var vol=_suType==='volunteer';
   var p={accountType:_suType,fullName:$('s_name').value,username:$('s_user').value,password:$('s_pass').value,mobile:$('s_mob').value,email:$('s_email').value,state:$('s_state').value,city:$('s_city').value,terms:$('s_terms').checked};
-  if(vol){Object.assign(p,volPayload());p.aadhaarNumber=$('s_aad').value;p.consent=$('s_consent').checked;}
+  if(vol){Object.assign(p,volPayload());if($('s_aad')){p.aadhaarNumber=$('s_aad').value;p.consent=$('s_consent').checked;}}
   var say=function(m){b.innerHTML='<span class="spin"></span> '+m;};if(vol)say('Preparing photos…');
-  Promise.all([vol&&fileOf('s_photo')?readImg(fileOf('s_photo'),600).catch(function(e){throw 'Profile photo: '+e;}):'',vol&&fileOf('s_aadimg')?readImg(fileOf('s_aadimg'),1600).catch(function(e){throw 'Aadhaar photo: '+e;}):'']).then(function(r){p.photo=r[0]||undefined;p.aadhaarImage=r[1]||undefined;say('Creating your account…');return call('api_signup',p);})
+  Promise.all([vol&&fileOf('s_photo')?readImg(fileOf('s_photo'),600).catch(function(e){throw 'Profile photo: '+e;}):'',vol&&$('s_aadimg')&&fileOf('s_aadimg')?readImg(fileOf('s_aadimg'),1600).catch(function(e){throw 'Aadhaar photo: '+e;}):'']).then(function(r){p.photo=r[0]||undefined;p.aadhaarImage=r[1]||undefined;say('Creating your account…');return call('api_signup',p);})
   .then(afterAuth).catch(function(e){busy(b,0);var m=errMsg(e);if(/already (taken|registered)/i.test(m))m+=' If you just tried to sign up, your account may already be created — try logging in.';$('err').textContent=m;$('err').scrollIntoView({block:'center',behavior:'smooth'});});}
 
 /* ============ EVENTS LIST ============ */
-function loadInit(){return call('api_publicInit',{token:S.token}).then(function(r){S.programs=r.programs;S.events=r.events;S.cats=r.categories;S.me=r.me;if(r.me)cacheSet('me',r.me);if(!r.me&&S.token)logoutLocal();cacheSet('init',{programs:r.programs,events:r.events,cats:r.categories});return r;});}
+function aadOn(){return !!(S.settings&&S.settings.aadhaarOn);}
+function loadInit(){return call('api_publicInit',{token:S.token}).then(function(r){S.settings=r.settings||{};try{localStorage.setItem('osoa-settings',JSON.stringify(S.settings));}catch(x){}S.programs=r.programs;S.events=r.events;S.cats=r.categories;S.me=r.me;if(r.me)cacheSet('me',r.me);if(!r.me&&S.token)logoutLocal();cacheSet('init',{programs:r.programs,events:r.events,cats:r.categories});return r;});}
 function renderHome(guest){
   var c=cacheGet('init');if(c){S.programs=c.programs;S.events=c.events;S.cats=c.cats;}
   $('app').innerHTML=shell({title:'ONE STATE ONE ARTIST',subtitle:'MANAGEMENT DESK'+(guest&&!S.token?' · Guest':''),brand:1,back:guest&&!S.token?"go('#/')":''})+'<main class="wrap" id="main">'+(c?'':'<div class="grid">'+skel(3).replace(/height:\d+px/g,'height:250px')+'</div>')+'</main>';
@@ -531,7 +536,7 @@ function renderHome(guest){
 function drawHome(){
   var sup=S.me&&S.me.isSuper,h='';
   h+='<h1>'+(S.me?'Hello, '+esc(S.me.fullName.split(' ')[0]):'Events')+'</h1><p class="sub" style="margin:0 0 14px">Choose an event to continue.</p>';
-  if(sup)h+='<div class="btns" style="margin-bottom:14px"><button class="btn p" onclick="editEvent()">'+ic('plus')+'New event</button><button class="btn" onclick="go(\'#/programs\')">'+ic('palette')+'Programs</button><button class="btn" onclick="go(\'#/people\')">'+ic('users')+'People</button><button class="btn" onclick="go(\'#/artistdb\')">'+ic('palette')+'Artists Database</button></div>';
+  if(sup)h+='<div class="btns" style="margin-bottom:14px"><button class="btn p" onclick="editEvent()">'+ic('plus')+'New event</button><button class="btn" onclick="go(\'#/programs\')">'+ic('palette')+'Programs</button><button class="btn" onclick="go(\'#/people\')">'+ic('users')+'People</button><button class="btn" onclick="go(\'#/artistdb\')">'+ic('palette')+'Artists Database</button><button class="btn" onclick="appSettings()">'+ic('gear')+'App settings & Drive copy</button></div>';
   else if(S.me&&Object.keys(S.me.roles||{}).some(function(k){return S.me.roles[k].role==='admin'&&S.me.roles[k].status==='approved';}))h+='<div class="btns" style="margin-bottom:14px"><button class="btn" onclick="go(\'#/artistdb\')">'+ic('palette')+'Artists Database</button></div>';
   h+='<div class="chips"><div class="chip '+(S.filter==='all'?'on':'')+'" onclick="S.filter=\'all\';drawHome()">All</div>'+S.programs.map(function(p){return '<div class="chip '+(S.filter===p.programId?'on':'')+'" onclick="S.filter=\''+p.programId+'\';drawHome()">'+esc(p.short)+'</div>';}).join('')+'</div>';
   var evs=S.events.filter(function(e){return S.filter==='all'||e.programId===S.filter;});
@@ -571,18 +576,18 @@ function doChangePass(b){busy(b,1);A('api_changePassword',{oldPassword:$('c_old'
 /* ---- my profile page ---- */
 function renderMyProfile(){$('app').innerHTML=shell({title:'My profile',subtitle:'',back:"history.back()"})+'<main class="wrap" id="main">'+skel(3)+'</main>';
   A('api_me',{}).then(function(m){S.me=m;var vol=m.accountType!=='artist';
-    $('main').innerHTML='<div style="max-width:720px">'+(vol&&!m.hasAadhaar?'<div class="warnbox" style="margin:0 0 12px">Please complete your profile (including Aadhaar) to join events as a volunteer.</div>':'')+
+    $('main').innerHTML='<div style="max-width:720px">'+(vol&&!m.hasAadhaar&&aadOn()?'<div class="warnbox" style="margin:0 0 12px">Please complete your profile (including Aadhaar) to join events as a volunteer.</div>':'')+
     '<div class="card" style="padding:18px"><div class="row">'+avatar(m,'lg')+'<div class="grow"><b style="font-size:17px">'+esc(m.fullName)+'</b><div class="mut">@'+esc(m.username)+'</div></div><label class="btn sm" style="margin:0">Change photo<input type="file" accept="image/*" class="hide" id="s_photo" onchange="this.parentNode.firstChild.textContent=\'Photo selected\'"></label></div>'+
     '<label class="req">Full name</label><input id="s_name" value="'+esc(m.fullName)+'"><div class="two"><div><label class="req">Mobile</label><input id="s_mob" inputmode="tel" value="'+esc(m.mobile)+'"></div><div><label class="req">Email</label><input id="s_email" type="email" value="'+esc(m.email)+'"></div></div>'+
     '<div class="two"><div><label class="req">State</label><input id="s_state" list="states" value="'+esc(m.state)+'"></div><div><label class="req">City</label><input id="s_city" value="'+esc(m.city)+'"></div></div>'+
     '<label>Instagram</label><input id="s_ig" autocapitalize="none" placeholder="@yourhandle" value="'+esc(m.instagram)+'"><label>Short bio</label><textarea id="s_bio">'+esc(m.bio)+'</textarea>'+
-    (vol?volExtraFields(m)+aadhaarFields(!m.hasAadhaar)+(m.hasAadhaar?'<div class="mut" style="margin-top:6px">Aadhaar on file: XXXX XXXX '+esc(m.aadhaarLast4)+'</div>':''):'')+statesList()+
-    '<div class="err" id="err"></div><button class="btn p full" style="margin-top:14px" onclick="saveMyProfile(this,'+vol+','+!m.hasAadhaar+')">Save profile</button></div></div>';
+    (vol?volExtraFields(m)+aadhaarFields(!m.hasAadhaar)+(m.hasAadhaar&&aadOn()?'<div class="mut" style="margin-top:6px">Aadhaar on file: XXXX XXXX '+esc(m.aadhaarLast4)+'</div>':''):'')+statesList()+
+    '<div class="err" id="err"></div><button class="btn p full" style="margin-top:14px" onclick="saveMyProfile(this,'+vol+','+(!m.hasAadhaar&&aadOn())+')">Save profile</button></div></div>';
   }).catch(function(e){$('main').innerHTML='<div class="empty">'+esc(errMsg(e))+'</div>';});}
 function saveMyProfile(b,vol,needAad){$('err').textContent='';busy(b,1);
   var p={fullName:$('s_name').value,mobile:$('s_mob').value,email:$('s_email').value,state:$('s_state').value,city:$('s_city').value,instagram:$('s_ig').value,bio:$('s_bio').value};
-  if(vol){Object.assign(p,volPayload());p.full=true;if($('s_aad').value)p.aadhaarNumber=$('s_aad').value;if(needAad&&$('s_consent')&&!$('s_consent').checked){busy(b,0);$('err').textContent='Please accept the Aadhaar consent.';return;}}
-  Promise.all([fileOf('s_photo')?readImg(fileOf('s_photo'),600):'',vol&&fileOf('s_aadimg')?readImg(fileOf('s_aadimg'),1600):'']).then(function(r){if(r[0])p.photo=r[0];if(r[1])p.aadhaarImage=r[1];
+  if(vol){Object.assign(p,volPayload());p.full=true;if($('s_aad')&&$('s_aad').value)p.aadhaarNumber=$('s_aad').value;if(needAad&&$('s_consent')&&!$('s_consent').checked){busy(b,0);$('err').textContent='Please accept the Aadhaar consent.';return;}}
+  Promise.all([fileOf('s_photo')?readImg(fileOf('s_photo'),600):'',vol&&$('s_aadimg')&&fileOf('s_aadimg')?readImg(fileOf('s_aadimg'),1600):'']).then(function(r){if(r[0])p.photo=r[0];if(r[1])p.aadhaarImage=r[1];
     if(vol&&needAad&&(!p.aadhaarImage||!p.aadhaarNumber))throw 'Please add your Aadhaar number and photo.';return A('api_updateProfile',p);})
   .then(function(me){S.me=me;busy(b,0);toast('Profile saved');renderMyProfile();}).catch(function(e){busy(b,0);$('err').textContent=errMsg(e);});}
 
@@ -599,13 +604,13 @@ function openEvent(id){
   var pre=S.programs.length&&(!S.token||S.me)?Promise.resolve():loadInit();
   pre.then(function(){
     if(!S.token)return call('api_eventPublic',{eventId:id}).then(function(r){S.pub=r;cacheSet('pub:'+id,r);if(S.ev===id)drawGuestShell();});
-    return Promise.all([A('api_eventData',{eventId:id}),call('api_eventPublic',{eventId:id})]).then(function(rs){if(S.ev!==id)return;S.data=rs[0];S.pub=rs[1];cacheSet('ev:'+id,rs[0]);cacheSet('pub:'+id,rs[1]);drawEvent();});
+    return Promise.all([A('api_eventData',{eventId:id}),call('api_eventPublic',{eventId:id})]).then(function(rs){if(S.ev!==id)return;S.data=rs[0];S.pub=rs[1];cacheSet('ev:'+id,rs[0]);cacheSet('pub:'+id,rs[1]);drawEvent();startAlerts();});
   }).catch(function(err){if(!S.data)$('main').innerHTML='<div class="empty">'+ic('info')+'<p>'+esc(errMsg(err))+'</p><button class="btn" onclick="go(\'#/\')">Back to events</button></div>';else toast(errMsg(err),1);});
 }
 function refreshShell(){var src=S.data||S.pub;var e=src.event,p=src.program||prog(e.programId);
   var top=document.querySelector('.top');if(top)top.outerHTML=shell({title:String(p.name||'One State One Artist').toUpperCase(),subtitle:'MANAGEMENT DESK · '+e.name,brand:1,color:p.color,logoId:p.logoId,short:p.short,tap:"go('#/')",bell:!!(S.data&&S.data.role&&S.data.role!=='artist'),cal:!!(S.data&&S.data.role)});}
 function reloadEvent(){return A('api_eventData',{eventId:S.ev}).then(useData);}
-function useData(d){S.data=d;cacheSet('ev:'+S.ev,d);drawEvent();if(d&&d.warnings&&d.warnings.length)toast('⚠ '+d.warnings.join(' · '),1);}
+function useData(d){S.data=d;cacheSet('ev:'+S.ev,d);drawEvent();startAlerts();if(d&&d.warnings&&d.warnings.length)toast('⚠ '+d.warnings.join(' · '),1);}
 function drawGuestShell(){refreshShell();document.body.classList.remove('side');$('tabs').innerHTML='';drawGuest();}
 
 function badgeCount(d){var lead=d.role==='admin'||(d.myHeadTeams||[]).length;return (lead?(d.joinRequests||[]).length+(d.accessRequests||[]).length:0)+(d.selection&&d.selection.canVerify?(d.artists||[]).filter(function(a){return a.stagePending;}).length:0);}
@@ -655,7 +660,7 @@ function joinCard(){var d=S.data,e=S.pub.event,my=d&&d.myRole;if(d&&d.role)retur
   if(S.me&&S.me.accountType==='artist'){if(String(e.regOpen).toUpperCase()==='FALSE')return '';return '<div class="card" style="margin-top:14px"><div class="row"><div class="grow"><h3>Register as an artist</h3><div class="mut">Submit your artwork for this event.</div></div><button class="btn p" onclick="artistForm()">Register</button></div></div>';}
   return '<div class="card" style="margin-top:14px"><div class="row"><div class="grow"><h3>Volunteer for this event</h3><div class="mut">Send a request. An admin or Project Lead will approve it.</div></div><button class="btn p" onclick="joinForm()">Request to join</button></div></div>';}
 function joinForm(){var t=(S.data&&S.data.teamsPublic)||[];
-  if(S.me&&!S.me.hasAadhaar){sheet('Complete your profile','<p class="sub">Please complete your volunteer profile (including Aadhaar) before joining an event.</p><button class="btn p full" onclick="go(\'#/profile\')">Complete profile</button>');return;}
+  if(S.me&&!S.me.hasAadhaar&&aadOn()){sheet('Complete your profile','<p class="sub">Please complete your volunteer profile (including Aadhaar) before joining an event.</p><button class="btn p full" onclick="go(\'#/profile\')">Complete profile</button>');return;}
   sheet('Volunteer request','<label style="margin-top:0">Which team would you like to join? (optional)</label><select id="j_team"><option value="">No preference</option>'+t.map(function(x){return '<option value="'+x.teamId+'">'+esc(x.name)+'</option>';}).join('')+'</select>'+
   '<label>Message (optional)</label><textarea id="j_note" placeholder="Anything the organisers should know?"></textarea><div class="err" id="err"></div><button class="btn p full" style="margin-top:14px" onclick="sendJoin(this)">Send request</button>');}
 function sendJoin(b){busy(b,1);A('api_requestJoin',{eventId:S.ev,teamId:$('j_team').value,note:$('j_note').value}).then(function(d){closeSheet();toast('Request sent');A('api_me',{}).then(function(m){S.me=m;});useData(d);}).catch(function(e){busy(b,0);$('err').textContent=errMsg(e);});}
@@ -855,8 +860,9 @@ function giveBadge(uid,b){busy(b,1);A('api_giveBadge',{eventId:S.ev,userId:uid,b
 function removeBadge(id,uid){if(!confirmBox('Remove this badge?'))return;A('api_removeBadge',{id:id}).then(function(m){S.data.badges=m;cacheSet('ev:'+S.ev,S.data);toast('Badge removed');openProfile(uid);}).catch(function(e){toast(errMsg(e),1);});}
 
 /* ---- NOTIFICATIONS ---- */
-function openNotifs(){var l=(S.data&&S.data.notifications)||[];
-  sheet('Notifications',l.length?'<div class="card" style="padding:2px 14px">'+l.map(function(n){return '<div class="li" style="cursor:pointer" onclick="'+(n.taskId?'closeSheet();openTask(\''+n.taskId+'\')':'closeSheet()')+'">'+ic(n.taskId?'list':'bell')+'<div class="grow"><b style="font-weight:'+(n.isRead?500:700)+';white-space:normal">'+esc(n.text)+'</b><span class="mut">'+ago(n.at)+'</span></div>'+(n.isRead?'':'<span class="udot"></span>')+'</div>';}).join('')+'</div>':'<div class="empty">'+ic('bell')+'<p>You are all caught up.</p></div>');
+function openNotifs(){if(S._nreload&&S.ev){S._nreload=0;sheet('Notifications','<div class="sk" style="height:120px"></div>');A('api_eventData',{eventId:S.ev}).then(function(d){S.data=d;cacheSet('ev:'+S.ev,d);openNotifs();}).catch(function(){openNotifs();});return;}
+  var l=(S.data&&S.data.notifications)||[];
+  sheet('Notifications',l.length?'<div class="card" style="padding:2px 14px">'+l.map(function(n){return '<div class="li" style="cursor:pointer" onclick="'+(n.taskId?'closeSheet();openTask(\''+n.taskId+'\')':(n.link?'closeAlert(\''+esc(n.link)+'\')':'closeSheet()'))+'">'+(n.kind&&ALK[n.kind]?'<span style="font-size:20px">'+ALK[n.kind][0]+'</span>':ic(n.taskId?'list':'bell'))+'<div class="grow"><b style="font-weight:'+(n.isRead?500:700)+';white-space:normal">'+esc(n.text)+'</b><span class="mut">'+ago(n.at)+'</span></div>'+(n.isRead?'':'<span class="udot"></span>')+'</div>';}).join('')+'</div>':'<div class="empty">'+ic('bell')+'<p>You are all caught up.</p></div>');
   if(S.data&&S.data.unread){A('api_markNotificationsRead',{eventId:S.ev}).then(function(){S.data.unread=0;S.data.notifications.forEach(function(n){n.isRead=true;});cacheSet('ev:'+S.ev,S.data);var d=document.querySelector('.top .bell .dot');if(d)d.remove();}).catch(function(){});}}
 
 /* ---- confetti ---- */
@@ -1012,6 +1018,7 @@ function drawMore(){var d=S.data,sup=S.me.isSuper,admin=d.role==='admin',head=(d
   if(admin||(d.selection&&d.selection.canMove))it.push(['users','Artists Database (all years)',"go('#/artistdb')"]);
   it.push(['bell','Announcements',"setTab('announcements')"],['cal','Schedule',canTasks?'schedPage()':"setTab('schedule')"]);
   if(admin||head)it.push(['activity','Activity',"setTab('activity')",0,'phone']);
+  if(sup)it.push(['gear','App settings & Drive copy','appSettings()']);
   if(admin)it.push(['edit','Event settings','editEvent(S.data.event)'],['doc','Certificates & material options','artistServices()']);
   it.push(['eye','Public page (guest view)',"setTab('public')"]);
   if(admin)it.push(['doc','Export report to Google Doc','exportDoc()']);
@@ -1601,6 +1608,27 @@ function calSave(b,id){var k=calKindVal(),ad=$('cf_ad').checked,d=$('cf_d').valu
     repeat:$('cf_r').value,repeatUntil:$('cf_ru').value,remind:$('cf_rm').value,note:$('cf_n').value,link:$('cf_l').value,location:$('cf_loc').value,
     audience:{type:$('cf_at').value,teamIds:teams.filter(function(t){return tn.indexOf(t.name)>=0;}).map(function(t){return t.teamId;}),role:$('cf_rl').value,usernames:$('cf_us').value}};
   busy(b,1);A('api_saveCalEntry',{eventId:S.ev,entry:x}).then(function(r){CAL.data=r;CAL.cur=pdt(x.start);CAL.cur.setHours(0,0,0,0);CAL.sel=d;toast('Saved');drawCal();}).catch(function(e){busy(b,0);$('err').textContent=errMsg(e);});}
+/* ============ APP SETTINGS + REQUEST POPUPS (v2.8) ============ */
+function appSettings(){sheet('App settings','<div class="sk" style="height:200px"></div>');A('api_readableInfo',{}).then(drawAppSettings).catch(function(e){closeSheet();toast(errMsg(e),1);});}
+function drawAppSettings(r){S.settings=r.settings||S.settings;var on=aadOn();
+  sheet('App settings','<div class="card"><div class="row"><div class="grow"><b>Aadhaar collection</b><div class="mut">'+(on?'ON — volunteers must give Aadhaar number and photo.':'OFF — Aadhaar fields are hidden. Aadhaar already collected is kept safely and hidden.')+'</div></div><label class="switch"><input type="checkbox" '+(on?'checked':'')+' onchange="setAadhaar(this)"><i></i></label></div></div>'+
+  '<div class="card"><b>Readable copy in Google Drive</b><div class="mut" style="margin-top:4px">All app data as clean Google Sheets in My Drive › My Apps › OSOA Desk › 11. Readable Data. Updated automatically every hour.</div><div style="margin-top:8px">Last updated: <b>'+esc(r.lastUpdated||'not yet')+'</b></div>'+
+  '<div class="btns" style="margin-top:10px"><a class="btn sm" target="_blank" rel="noopener" href="'+esc(r.folderUrl)+'">'+ic('eye')+'Open folder</a><button class="btn sm p" onclick="updateReadable(this)">Update now</button></div><p class="mut" style="margin:8px 0 0">Aadhaar numbers are in a separate sheet in “9. Aadhaar (private)”.</p></div>');}
+function setAadhaar(el){var v=el.checked;if(!confirmBox(v?'Turn Aadhaar collection ON? Volunteers will have to give Aadhaar number and photo again.':'Turn Aadhaar collection OFF? The fields will be hidden. Aadhaar already collected is kept safely.')){el.checked=!v;return;}
+  el.disabled=true;A('api_setAppSetting',{key:'aadhaarOn',value:v}).then(function(r){S.settings=r.settings;try{localStorage.setItem('osoa-settings',JSON.stringify(S.settings));}catch(x){}toast(v?'Aadhaar ON':'Aadhaar OFF');appSettings();}).catch(function(e){el.checked=!v;el.disabled=false;toast(errMsg(e),1);});}
+function updateReadable(b){busy(b,1);b.insertAdjacentHTML('afterend','<span class="mut" id="rdwait" style="margin-left:6px">This can take up to a minute…</span>');A('api_updateReadableNow',{}).then(function(r){toast('Drive copy updated');drawAppSettings(r);}).catch(function(e){busy(b,0);if($('rdwait'))$('rdwait').remove();toast(errMsg(e),1);});}
+var _alertT=null,_popped=(function(){try{return JSON.parse(localStorage.getItem('osoa-popped')||'[]');}catch(x){return [];}})();
+function startAlerts(){if(_alertT)return;_alertT=setInterval(checkAlerts,60000);setTimeout(checkAlerts,4000);document.addEventListener('visibilitychange',function(){if(!document.hidden)checkAlerts();});}
+function checkAlerts(){if(document.hidden||!S.token||!S.ev||!S.data||!S.data.role||S.data.role==='artist')return;var ev=S.ev;
+  call('api_alerts',{token:S.token,eventId:ev}).then(function(r){if(S.ev!==ev||!S.data)return;
+    if(r.unread!==S.data.unread){if(r.unread>(S.data.unread||0))S._nreload=1;S.data.unread=r.unread;refreshShell();}
+    var fresh=(r.requests||[]).filter(function(x){return _popped.indexOf(x.id)<0;});if(fresh.length&&!$('alertbg'))showAlert(fresh);}).catch(function(){});}
+var ALK={req_volunteer:['🙋','Volunteer request'],req_access:['🔑','Access request'],req_expense:['💰','Expense to approve'],req_level:['⭐','Level change to verify']};
+function showAlert(list){var d=document.createElement('div');d.id='alertbg';d.className='alertbg';
+  d.innerHTML='<div class="alertbox" role="alertdialog" aria-modal="true"><div class="ah">🔔 '+(list.length>1?list.length+' new requests':'New request')+'</div>'+list.slice(0,5).map(function(x){var k=ALK[x.kind]||['🔔','Request'];return '<div class="ai"><span class="ae">'+k[0]+'</span><div class="grow"><b>'+k[1]+'</b><div>'+esc(x.text)+'</div><small class="mut">'+ago(x.at)+'</small></div></div>';}).join('')+(list.length>5?'<div class="mut">+'+(list.length-5)+' more in the 🔔 panel</div>':'')+
+  '<div class="btns" style="margin-top:14px;justify-content:flex-end"><button class="btn" onclick="closeAlert()">Close</button><button class="btn p" onclick="closeAlert(\''+esc(list[0].link||'requests')+'\')">View</button></div></div>';
+  document.body.appendChild(d);list.forEach(function(x){_popped.push(x.id);});_popped=_popped.slice(-300);try{localStorage.setItem('osoa-popped',JSON.stringify(_popped));}catch(x){}}
+function closeAlert(link){var d=$('alertbg');if(d)d.remove();if(link){closeSheet();setTab(link==='finance'?'finance':link==='selection'?'selection':'requests');reloadEvent().catch(function(){});}}
 /* ---- Google Form import ---- */
 function parseCsv(t){var rows=[],row=[],f='',q=false;for(var i=0;i<t.length;i++){var c=t[i];if(q){if(c==='"'){if(t[i+1]==='"'){f+='"';i++;}else q=false;}else f+=c;}
   else if(c==='"')q=true;else if(c===','){row.push(f);f='';}else if(c==='\n'||c==='\r'){if(c==='\r'&&t[i+1]==='\n')i++;row.push(f);rows.push(row);row=[];f='';}else f+=c;}
