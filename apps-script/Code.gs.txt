@@ -1,5 +1,5 @@
 /*************************************************************
- * OSOA DESK  —  Code.gs  (backend)   v2.4.0
+ * OSOA DESK  —  Code.gs  (backend)   v2.5.0
  * Google Apps Script web app. Data in a Google Sheet.
  * Drive folder: My Apps / OSOA Desk / ...
  *
@@ -9,7 +9,7 @@
  *   (first time after this update Google asks for permission once — Allow)
  *************************************************************/
 
-var APP_VERSION = '2.4.0';
+var APP_VERSION = '2.5.0';
 var APP_NAME    = 'OSOA Management Desk';
 
 /* ---- Super admin (no password stored here; set it via "Forgot password") ---- */
@@ -28,7 +28,7 @@ var SUB_DB='1. Database', SUB_ART='2. Artworks', SUB_PHOTOS='3. Profile Photos',
 var PUBLIC_IMAGE_FOLDERS=[SUB_ART,SUB_PHOTOS,SUB_LOGOS,SUB_COVERS,SUB_TASKS];
 var SS_NAME='OSOA Desk — Database';
 var TOKEN_DAYS=30, DEVICE_DAYS=30, BACKUP_KEEP=14;
-var SCHEMA_VERSION='8';
+var SCHEMA_VERSION='9';
 
 var DEFAULT_PROGRAMS=[
   {programId:'p-osoa', name:'One State One Artist', short:'OSOA', deskName:'OSOA Desk', color:'#D4A017'},
@@ -90,11 +90,13 @@ var SCHEMA={
          'accountType','dob','address','bloodGroup','tshirt','skills','emName','emRelation','emMobile','aadhaarNumber','aadhaarFileId','consentAt','isDisabled','devicesJSON'],
   Sessions:['id','userId','tokenHash','exp','createdAt'],
   Programs:['programId','name','short','deskName','color','logoId','sort'],
-  Events:['eventId','programId','name','startDate','endDate','time','venue','city','state','mapUrl','contactName','contactPhone','about','coverId','status','isPublic','regOpen','createdBy','createdAt','budgetTotal','budgetJSON','approvalLimit','selectionTeamId'],
-  Roles:['roleId','eventId','userId','role','status','category','bio','artworkJSON','artTitle','checkedIn','checkedInAt','checkedInBy','note','createdAt','decidedBy','decidedAt','preferredTeamId','stage','stagePending','stagePendingBy','stageAt','stageBy','interviewAt','interviewNotes','interviewScore','travelJSON','emailedStage','source','artworkLinks'],
+  Events:['eventId','programId','name','startDate','endDate','time','venue','city','state','mapUrl','contactName','contactPhone','about','coverId','status','isPublic','regOpen','createdBy','createdAt','budgetTotal','budgetJSON','approvalLimit','selectionTeamId','selGroupsJSON','ivQuestionsJSON'],
+  Roles:['roleId','eventId','userId','role','status','category','bio','artworkJSON','artTitle','checkedIn','checkedInAt','checkedInBy','note','createdAt','decidedBy','decidedAt','preferredTeamId','stage','stagePending','stagePendingBy','stageAt','stageBy','interviewAt','interviewNotes','interviewScore','travelJSON','emailedStage','source','artworkLinks',
+         'screenLink','photosRequested','screenNote','screenBy','screenAt','workPhotosJSON','specialistId','rankOrder','expClaimed','expVerified','ivAnswersJSON'],
   StageLog:['id','eventId','roleId','userId','fromStage','toStage','byUser','verifiedBy','note','at'],
   Tasks:['taskId','eventId','title','detail','assignedTo','due','status','createdBy','createdAt','doneAt','teamId','priority','dueTime','progress','statusNote','checklistJSON','updatedAt','updatedBy'],
   TaskUpdates:['id','taskId','eventId','userId','kind','status','progress','text','filesJSON','at'],
+  Ratings:['id','eventId','roleId','userId','stars','at'],
   Badges:['id','eventId','userId','badgeKey','label','icon','tone','note','givenBy','at'],
   Notifications:['id','eventId','userId','text','taskId','isRead','at'],
   Teams:['teamId','eventId','name','headId','sort','createdBy','createdAt','requireVerify'],
@@ -456,7 +458,7 @@ function programsList_(){ return readAll_('Programs').slice().sort(function(a,b)
 function eventOut_(e){
   var appr=rolesOf_(e.eventId).filter(function(r){return r.role==='artist'&&r.status==='approved';}), st={};
   appr.forEach(function(r){ var u=user_(r.userId); if(u&&u.state) st[u.state]=1; });
-  var o={}; SCHEMA.Events.forEach(function(k){ if(k!=='budgetJSON') o[k]=e[k]; });
+  var o={}; SCHEMA.Events.forEach(function(k){ if(k!=='budgetJSON'&&k!=='selGroupsJSON'&&k!=='ivQuestionsJSON') o[k]=e[k]; });
   o.artistCount=appr.length; o.stateCount=Object.keys(st).length;
   return o;
 }
@@ -478,6 +480,7 @@ function api_eventPublic(p){
 }
 function adoptersOf_(ev,artistId){ return readAll_('Income').filter(function(i){return i.eventId===ev&&i.kind==='adopt'&&i.artistId===artistId;}).map(function(i){return i.sourceName;}).join(', '); }
 function jp_(s){ try{ var v=JSON.parse(s||'[]'); return Array.isArray(v)?v:[]; }catch(e){ return []; } }
+function jo_(s){ try{ var v=JSON.parse(s||'{}'); return (v&&typeof v==='object'&&!Array.isArray(v))?v:{}; }catch(e){ return {}; } }
 function scheduleOf_(ev){ return readAll_('Schedule').filter(function(s){return s.eventId===ev;}).sort(function(a,b){ return (a.day+' '+a.time).localeCompare(b.day+' '+b.time); }); }
 
 /* ============================================================
@@ -501,10 +504,11 @@ function api_eventData(p){
   out.admins=Object.keys(adm).map(function(k){var u=adm[k];var o=pubUser_(u);o.mobile=u.mobile;return o;});
   out.myHeadTeams=headTeamIds_(me,ev); out.myTaskTeams=taskTeamIds_(me,ev); out.positions=POSITION_NAME;
   var cs=canSelect_(me,ev);
-  if(sec.artists) out.artists=roles.filter(function(r){return r.role==='artist' && (cs||r.status==='approved');}).map(function(r){return roleOut_(r,cs);});
+  if(sec.artists) out.artists=roles.filter(function(r){return r.role==='artist' && (cs||r.status==='approved');}).map(function(r){return roleOut_(r,cs,cs);});
   if(sec.artists){ var st=selTeam_(ev);
     out.selection={teamId:st?st.teamId:'',teamName:st?st.name:'',requireVerify:!!(st&&T_(st.requireVerify)),canMove:cs,canVerify:selHead_(me,ev),canEmail:cs,canSettings:role==='admin',
-      stages:STAGES,stageNames:STAGE_NAME,pendingEmails:cs?roles.filter(function(r){var s2=stageOf_(r);return r.role==='artist'&&s2!=='registered'&&!r.stagePending&&r.emailedStage!==s2;}).length:0}; }
+      groups:selGroups_(e),ivQuestions:ivQuestions_(e),committee:cs?committee_(ev):[],me:me.userId,canReplace:selHead_(me,ev),
+      stages:STAGES,stageNames:STAGE_NAME,pendingEmails:cs?roles.filter(function(r){var s2=stageOf_(r);return r.role==='artist'&&s2!=='registered'&&s2!=='withdrawn'&&!r.stagePending&&r.emailedStage!==s2;}).length:0}; }
   if(role==='admin'||role==='volunteer'){
     var tasks=readAll_('Tasks').filter(function(t){return t.eventId===ev;}), myT=myTeamIds_(me,ev);
     out.tasks=(sec.tasks?tasks:tasks.filter(function(t){return t.assignedTo===me.userId||(t.teamId&&myT.indexOf(t.teamId)>=0)||(!t.assignedTo&&!t.teamId);})).map(taskOut_);
@@ -530,15 +534,22 @@ function api_eventData(p){
   else out.myExpenses=readAll_('Expenses').filter(function(x){return x.eventId===ev&&x.requestedBy===me.userId;}).map(expOut_);
   return out;
 }
-function roleOut_(r,full){
+function roleOut_(r,full,sel){
   var u=user_(r.userId)||{};
   var o={roleId:r.roleId,userId:r.userId,role:r.role,status:r.status,category:r.category||u.category,bio:r.bio||u.bio,artTitle:r.artTitle,
     artworks:jp_(r.artworkJSON),checkedIn:T_(r.checkedIn),checkedInAt:r.checkedInAt,createdAt:r.createdAt,
     name:u.fullName,username:u.username,photoId:u.photoId,state:u.state,city:u.city,instagram:u.instagram};
   if(r.role==='artist'){ o.stage=stageOf_(r); o.stagePending=r.stagePending||''; var pb=r.stagePendingBy?user_(r.stagePendingBy):null; o.stagePendingName=pb?pb.fullName:'';
-    o.interviewScore=num_(r.interviewScore); o.source=r.source||'app'; o.emailed=r.emailedStage===o.stage; }
+    o.source=r.source||'app'; o.emailed=r.emailedStage===o.stage;
+    if(sel){ o.interviewScore=num_(r.interviewScore); var rt=ratingsOf_(r.roleId); o.ratingAvg=rt.avg; o.ratingCount=rt.list.length;
+      o.specialistId=r.specialistId||''; var sp=r.specialistId?user_(r.specialistId):null; o.specialistName=sp?sp.fullName:'';
+      o.rankOrder=r.rankOrder===''||r.rankOrder==null?null:num_(r.rankOrder); o.screenLink=r.screenLink||''; o.photosRequested=T_(r.photosRequested);
+      o.age=ageOf_(u.dob); o.workPhotos=jp_(r.workPhotosJSON); } }
   if(full){ o.mobile=u.mobile; o.email=u.email; o.note=r.note; o.decidedAt=r.decidedAt;
-    if(r.role==='artist'){ o.interviewAt=r.interviewAt; o.interviewNotes=r.interviewNotes; var tv=jp_(r.travelJSON); o.travel=Array.isArray(tv)?{}:tv; o.artworkLinks=r.artworkLinks||''; } }
+    if(r.role==='artist'){ o.interviewAt=r.interviewAt; if(sel) o.interviewNotes=r.interviewNotes; o.travel=jo_(r.travelJSON); o.artworkLinks=r.artworkLinks||''; }
+    if(r.role==='artist'&&sel){
+      o.ratings=ratingsOf_(r.roleId).list; o.screenNote=r.screenNote||''; var sb=r.screenBy?user_(r.screenBy):null; o.screenByName=sb?sb.fullName:''; o.screenAt=r.screenAt||'';
+      o.expClaimed=r.expClaimed||''; o.expVerified=r.expVerified||''; o.ivAnswers=jp_(r.ivAnswersJSON); o.dob=u.dob||''; } }
   return o;
 }
 
@@ -926,10 +937,10 @@ function api_deleteTask(p){
 /* ============================================================
  *  ARTIST SELECTION (Registered → Level 1 → Interview → Level 2 → Level 3)
  * ========================================================== */
-var STAGES=['registered','level1','interview','level2','level3','waitlist','rejected'];
-var STAGE_NAME={registered:'Registered',level1:'Level 1 – Shortlisted',interview:'Interview',level2:'Level 2 – Final',level3:'Level 3 – Confirmed',waitlist:'Waitlist',rejected:'Not selected'};
+var STAGES=['registered','level1','interview','level2','level3','waitlist','rejected','withdrawn'];
+var STAGE_NAME={registered:'Registered',level1:'Level 1 – Shortlisted',interview:'Interview',level2:'Level 2 – Final',level3:'Level 3 – Confirmed',waitlist:'Waitlist',rejected:'Not selected',withdrawn:'Dropped out'};
 function stageOf_(r){ if(r.stage) return r.stage; return r.status==='approved'?'level2':(r.status==='rejected'?'rejected':'registered'); }
-function statusFor_(st){ return (st==='level2'||st==='level3')?'approved':(st==='rejected'?'rejected':'pending'); }
+function statusFor_(st){ return (st==='level2'||st==='level3')?'approved':((st==='rejected'||st==='withdrawn')?'rejected':'pending'); }
 function selTeam_(ev){ var e=find_('Events','eventId',ev); return e&&e.selectionTeamId?find_('Teams','teamId',e.selectionTeamId):null; }
 function inSelTeam_(me,ev){ var t=selTeam_(ev); if(!t) return false; return t.headId===me.userId || readAll_('TeamMembers').some(function(m){return m.teamId===t.teamId&&m.userId===me.userId;}); }
 function canSelect_(me,ev){ return roleOf_(me,ev)==='admin' || (roleOf_(me,ev)==='volunteer' && inSelTeam_(me,ev)); }
@@ -943,6 +954,7 @@ function api_moveArtist(p){
   var me=userByToken_(p.token), r=find_('Roles','roleId',p.roleId); if(!r||r.role!=='artist') throw 'Artist not found.';
   if(!canSelect_(me,r.eventId)) throw 'Only the selection team or admins can move artists.';
   if(STAGES.indexOf(p.stage)<0) throw 'Unknown stage.';
+  if(r.specialistId && r.specialistId!==me.userId && roleOf_(me,r.eventId)!=='admin'){ var spu=user_(r.specialistId)||{}; throw (spu.fullName||'A specialist')+' is reviewing this artist as Specialist. Only they or an admin can move them.'; }
   if(stageOf_(r)===p.stage && !r.stagePending) return api_eventData({token:p.token,eventId:r.eventId});
   if(p.stage==='rejected' && !String(p.note||'').trim()) throw 'Please give a reason for not selecting.';
   var t=selTeam_(r.eventId), u=user_(r.userId)||{};
@@ -971,14 +983,18 @@ function api_saveInterview(p){
   var me=userByToken_(p.token), r=find_('Roles','roleId',p.roleId); if(!r) throw 'Not found.';
   if(!canSelect_(me,r.eventId)) throw 'Only the selection team or admins can do this.';
   var sc=num_(p.score); if(sc<0||sc>5) throw 'Score must be 0 to 5.';
-  updateWhere_('Roles','roleId',r.roleId,{interviewAt:p.interviewAt||'',interviewNotes:p.notes||'',interviewScore:sc?String(sc):''});
+  var row={interviewAt:p.interviewAt||'',interviewNotes:p.notes||'',interviewScore:sc?String(sc):''};
+  if(p.answers) row.ivAnswersJSON=JSON.stringify((p.answers||[]).slice(0,15).map(function(x){return {q:String(x.q||'').slice(0,300),a:String(x.a||'').slice(0,2000)};}));
+  if(p.expClaimed!==undefined) row.expClaimed=String(p.expClaimed||'').slice(0,10);
+  if(p.expVerified!==undefined) row.expVerified=String(p.expVerified||'').slice(0,10);
+  updateWhere_('Roles','roleId',r.roleId,row);
   var u=user_(r.userId)||{}; log_(r.eventId,me,'Interview saved',u.fullName+(sc?' — score '+sc+'/5':''),r.userId);
   return api_eventData({token:p.token,eventId:r.eventId});
 }
 function api_saveTravel(p){
   var me=userByToken_(p.token), r=find_('Roles','roleId',p.roleId); if(!r) throw 'Not found.';
   if(!canSelect_(me,r.eventId)) throw 'Only the selection team or admins can do this.';
-  var old=jp_(r.travelJSON); if(Array.isArray(old)) old={};
+  var old=jo_(r.travelJSON);
   var t=p.travel||{}, keep=['mode','number','pnr','from','arriveAt','departAt','stay','room','pickupAt','pickupBy','note'], o={};
   keep.forEach(function(k){ o[k]=String(t[k]||'').trim(); });
   o.ticketId=old.ticketId||''; o.ticketName=old.ticketName||'';
@@ -1009,8 +1025,99 @@ function api_setTeamVerify(p){
   log_(t.eventId,me,p.value?'Lead verification turned on':'Lead verification turned off',t.name);
   return api_eventData({token:p.token,eventId:t.eventId});
 }
+/* ---- Selection v2.5: committee ratings, screening, specialist, groups, ranking, interview checklist, backups ---- */
+var DEFAULT_IV_QUESTIONS=['How many years have you been practising this art form?','Walk us through your work process, from idea to finished piece.','Where have you exhibited, performed or taught?','Which materials and techniques do you use most?','Why do you want to be part of this event?'];
+function ageOf_(dob){ if(!dob) return null; var d=new Date(dob); if(isNaN(d)) return null; var n=new Date(), a=n.getFullYear()-d.getFullYear(); if(n.getMonth()<d.getMonth()||(n.getMonth()===d.getMonth()&&n.getDate()<d.getDate())) a--; return (a>0&&a<120)?a:null; }
+var _ratings=null;
+function ratingsOf_(roleId){
+  if(!_ratings){ _ratings={}; readAll_('Ratings').forEach(function(x){ (_ratings[x.roleId]=_ratings[x.roleId]||[]).push(x); }); }
+  var l=(_ratings[roleId]||[]).map(function(x){ var u=user_(x.userId)||{}; return {userId:x.userId,name:u.fullName||'',stars:num_(x.stars),at:x.at}; });
+  var s=0; l.forEach(function(x){s+=x.stars;});
+  return {list:l,avg:l.length?Math.round(s/l.length*10)/10:0};
+}
+function selGroups_(e){ var g=jp_(e.selGroupsJSON); return g.map(function(x){return {id:String(x.id||''),name:String(x.name||''),cats:(x.cats||[]).map(String)};}).filter(function(x){return x.id&&x.name;}); }
+function ivQuestions_(e){ var q=jp_(e.ivQuestionsJSON).map(String).filter(Boolean); return q.length?q:DEFAULT_IV_QUESTIONS; }
+function committee_(ev){ var t=selTeam_(ev), ids={}; if(t){ if(t.headId) ids[t.headId]=1; readAll_('TeamMembers').forEach(function(m){ if(m.teamId===t.teamId) ids[m.userId]=1; }); }
+  rolesOf_(ev).forEach(function(r){ if(r.role==='admin'&&r.status==='approved') ids[r.userId]=1; });
+  return Object.keys(ids).map(function(k){ var u=user_(k)||{}; return {userId:k,name:u.fullName||''}; }).filter(function(x){return x.name;}); }
+function selRole_(me,roleId){ var r=find_('Roles','roleId',roleId); if(!r||r.role!=='artist') throw 'Artist not found.';
+  if(!canSelect_(me,r.eventId)) throw 'Only the selection committee or admins can do this.'; return r; }
+function api_rateArtist(p){
+  var me=userByToken_(p.token), r=selRole_(me,p.roleId), s=Math.round(num_(p.stars));
+  if(s<0||s>5) throw 'Rating must be 1 to 5 stars.';
+  var ex=readAll_('Ratings').filter(function(x){return x.roleId===r.roleId&&x.userId===me.userId;})[0];
+  if(!s){ if(ex) deleteWhere_('Ratings','id',ex.id); }
+  else if(ex) updateWhere_('Ratings','id',ex.id,{stars:String(s),at:now_()});
+  else appendRow_('Ratings',{id:uid_('rt'),eventId:r.eventId,roleId:r.roleId,userId:me.userId,stars:String(s),at:now_()});
+  _ratings=null; var u=user_(r.userId)||{}; log_(r.eventId,me,'Artist rated',u.fullName+(s?' — '+s+'/5':' — rating removed'),r.userId);
+  return api_eventData({token:p.token,eventId:r.eventId});
+}
+function api_saveScreening(p){
+  var me=userByToken_(p.token), r=selRole_(me,p.roleId);
+  var link=String(p.link||''); if(link && ['genuine','fake','none'].indexOf(link)<0) throw 'Unknown link check.';
+  var row={screenLink:link,photosRequested:p.photosRequested?'TRUE':'FALSE',screenNote:String(p.note||'').slice(0,1000),screenBy:me.userId,screenAt:now_()};
+  var photos=jp_(r.workPhotosJSON);
+  (p.photos||[]).slice(0,6).forEach(function(d,i){ photos.push(saveFile_(SUB_ART,d,'work-'+r.roleId+'-'+Date.now()+'-'+i+'.jpg')); });
+  if(p.removePhoto) photos=photos.filter(function(x){return x!==p.removePhoto;});
+  row.workPhotosJSON=JSON.stringify(photos.slice(0,20));
+  updateWhere_('Roles','roleId',r.roleId,row);
+  var u=user_(r.userId)||{}; log_(r.eventId,me,'Screening saved',u.fullName+(link?' — link: '+link:''),r.userId);
+  return api_eventData({token:p.token,eventId:r.eventId});
+}
+function api_setSpecialist(p){
+  var me=userByToken_(p.token), r=selRole_(me,p.roleId), admin=roleOf_(me,r.eventId)==='admin', u=user_(r.userId)||{};
+  var to=p.release?'':(admin&&p.userId!==undefined?String(p.userId||''):me.userId);
+  if(!admin){
+    if(p.release){ if(r.specialistId!==me.userId) throw 'Only the Specialist or an admin can release this artist.'; }
+    else if(r.specialistId && r.specialistId!==me.userId){ var cur=user_(r.specialistId)||{}; throw (cur.fullName||'Someone')+' is already the Specialist for this artist. Ask an admin to reassign.'; }
+  }
+  if(to && !committee_(r.eventId).some(function(c){return c.userId===to;})) throw 'The Specialist must be in the selection committee.';
+  updateWhere_('Roles','roleId',r.roleId,{specialistId:to});
+  var sp=to?user_(to):null; log_(r.eventId,me,to?'Specialist set':'Specialist released',u.fullName+(sp?' — '+sp.fullName:''),r.userId);
+  if(to && to!==me.userId) notify_(r.eventId,to,me.fullName+' made you the Specialist for '+u.fullName+'.','');
+  return api_eventData({token:p.token,eventId:r.eventId});
+}
+function api_saveSelGroups(p){
+  var me=userByToken_(p.token); need_(me,p.eventId,['admin']);
+  var g=(p.groups||[]).map(function(x,i){ return {id:String(x.id||('g'+Date.now()+i)),name:String(x.name||'').trim().slice(0,60),cats:(x.cats||[]).map(String)}; }).filter(function(x){return x.name;}).slice(0,12);
+  var q=(p.questions||[]).map(function(x){return String(x||'').trim().slice(0,300);}).filter(Boolean).slice(0,15);
+  var row={selGroupsJSON:JSON.stringify(g)}; if(p.questions) row.ivQuestionsJSON=JSON.stringify(q);
+  updateWhere_('Events','eventId',p.eventId,row);
+  log_(p.eventId,me,'Selection groups saved',g.map(function(x){return x.name;}).join(', ')||'None');
+  return api_eventData({token:p.token,eventId:p.eventId});
+}
+function api_saveRanking(p){
+  var me=userByToken_(p.token); need_(me,p.eventId,['admin']);
+  var ids=p.order||[];
+  if(p.reset){ ids.forEach(function(id){ var r=find_('Roles','roleId',id); if(r&&r.eventId===p.eventId) updateWhere_('Roles','roleId',id,{rankOrder:''}); }); }
+  else ids.forEach(function(id,i){ var r=find_('Roles','roleId',id); if(r&&r.eventId===p.eventId&&r.role==='artist') updateWhere_('Roles','roleId',id,{rankOrder:String(i+1)}); });
+  log_(p.eventId,me,p.reset?'Ranking reset to automatic':'Ranking reordered',ids.length+' artists');
+  return api_eventData({token:p.token,eventId:p.eventId});
+}
+function groupIdOf_(groups,cat){ for(var i=0;i<groups.length;i++){ if(groups[i].cats.indexOf(cat)>=0) return groups[i].id; } return ''; }
+function rankSort_(a,b){ var x=a.rankOrder, y=b.rankOrder; if(x!=null&&y!=null&&x!==y) return x-y; if(x!=null&&y==null) return -1; if(x==null&&y!=null) return 1;
+  return (b.avg-a.avg)||(b.iv-a.iv)||String(a.createdAt).localeCompare(String(b.createdAt)); }
+function api_replaceArtist(p){
+  var me=userByToken_(p.token), r=find_('Roles','roleId',p.roleId); if(!r||r.role!=='artist') throw 'Artist not found.';
+  if(!selHead_(me,r.eventId)) throw 'Only admins or the selection committee\'s Project Lead can replace an artist.';
+  var st=stageOf_(r); if(st!=='level2'&&st!=='level3') throw 'Only selected or confirmed artists can be replaced.';
+  var reason=String(p.reason||'').trim(); if(!reason) throw 'Please give the reason (for example: cannot come on the event dates).';
+  var e=find_('Events','eventId',r.eventId), groups=selGroups_(e), gid=groupIdOf_(groups,r.category);
+  var backups=rolesOf_(r.eventId).filter(function(x){return x.role==='artist'&&stageOf_(x)==='waitlist'&&(!groups.length||groupIdOf_(groups,x.category)===gid);})
+    .map(function(x){ return {r:x,rankOrder:x.rankOrder===''||x.rankOrder==null?null:num_(x.rankOrder),avg:ratingsOf_(x.roleId).avg,iv:num_(x.interviewScore),createdAt:x.createdAt}; }).sort(rankSort_);
+  if(p.backupId) backups=backups.filter(function(b){return b.r.roleId===p.backupId;});
+  if(!backups.length) throw 'There is no one on the waitlist'+(groups.length?' for this selection group':'')+'.';
+  var b=backups[0].r, u=user_(r.userId)||{}, bu=user_(b.userId)||{}, prog=find_('Programs','programId',e.programId)||{};
+  applyStage_(r,'withdrawn',me.userId,'','Dropped out: '+reason); updateWhere_('Roles','roleId',r.roleId,{note:'Dropped out: '+reason,emailedStage:'withdrawn'});
+  applyStage_(b,st,me.userId,'','Replaced '+u.fullName);
+  var mailed=[];
+  try{ if(bu.email){ var m=stageMail_(find_('Roles','roleId',b.roleId),bu,e,prog); if(m){ MailApp.sendEmail(bu.email,m.subject,m.text,{htmlBody:m.html,name:prog.name||APP_NAME}); updateWhere_('Roles','roleId',b.roleId,{emailedStage:st}); mailed.push(bu.fullName); } } }catch(x){}
+  try{ if(u.email){ MailApp.sendEmail(u.email,(prog.name||APP_NAME)+' — We have noted your update','Hello '+u.fullName+',\n\nThank you for letting us know that you will not be able to take part in '+e.name+'. We have updated your registration. We hope to see you at a future edition.\n\n— Team '+(prog.name||APP_NAME),{name:prog.name||APP_NAME}); mailed.push(u.fullName); } }catch(x){}
+  log_(r.eventId,me,'Artist replaced',u.fullName+' → '+bu.fullName+' ('+reason+')',b.userId);
+  var out=api_eventData({token:p.token,eventId:r.eventId}); out.replaced={out:u.fullName,in:bu.fullName,mailed:mailed}; return out;
+}
 function stageMail_(r,u,e,prog){
-  var st=stageOf_(r), name=(prog.name||APP_NAME), col=prog.color||'#D4A017', tr=jp_(r.travelJSON); if(Array.isArray(tr)) tr={};
+  var st=stageOf_(r), name=(prog.name||APP_NAME), col=prog.color||'#D4A017', tr=jo_(r.travelJSON);
   var T={level1:['You are shortlisted! 🎉','Congratulations! After reviewing your artwork, you have been shortlisted (Level 1) for '+e.name+'. Our team will contact you about the next step.'],
     interview:['Interview for '+e.name,'You have been invited for an interview for '+e.name+'.'+(r.interviewAt?' Date & time: '+String(r.interviewAt).replace('T',' ')+'.':' We will share the time with you soon.')],
     level2:['You are selected for '+e.name+' 🎨','We are happy to tell you that you have been selected in the final list (Level 2) for '+e.name+'. Please keep your dates free: '+e.startDate+(e.endDate&&e.endDate!==e.startDate?' to '+e.endDate:'')+'.'],
@@ -1028,7 +1135,7 @@ function api_sendStageEmails(p){
   var me=userByToken_(p.token), e=find_('Events','eventId',p.eventId); if(!e) throw 'Event not found.';
   if(!canSelect_(me,e.eventId)) throw 'Only the selection team or admins can send emails.';
   var prog=find_('Programs','programId',e.programId)||{}, quota=100; try{ quota=MailApp.getRemainingDailyQuota(); }catch(x){}
-  var todo=rolesOf_(e.eventId).filter(function(r){ var st=stageOf_(r); return r.role==='artist' && st!=='registered' && !r.stagePending && r.emailedStage!==st; });
+  var todo=rolesOf_(e.eventId).filter(function(r){ var st=stageOf_(r); return r.role==='artist' && st!=='registered' && st!=='withdrawn' && !r.stagePending && r.emailedStage!==st; });
   var sent=0, failed=0, noEmail=0;
   todo.forEach(function(r){
     if(sent>=quota-2) return; var u=user_(r.userId); if(!u||!u.email){ noEmail++; return; }
