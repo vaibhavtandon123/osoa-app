@@ -1,5 +1,5 @@
 /*************************************************************
- * OSOA DESK  —  Code.gs  (backend)   v2.8.0
+ * OSOA DESK  —  Code.gs  (backend)   v2.9.0
  * Google Apps Script web app. Data in a Google Sheet.
  * Drive folder: My Apps / OSOA Desk / ...
  *
@@ -9,7 +9,7 @@
  *   (first time after this update Google asks for permission once — Allow)
  *************************************************************/
 
-var APP_VERSION = '2.8.0';
+var APP_VERSION = '2.9.0';
 var APP_NAME    = 'OSOA Management Desk';
 
 /* ---- Super admin (no password stored here; set it via "Forgot password") ---- */
@@ -28,7 +28,7 @@ var SUB_DB='1. Database', SUB_ART='2. Artworks', SUB_PHOTOS='3. Profile Photos',
 var PUBLIC_IMAGE_FOLDERS=[SUB_ART,SUB_PHOTOS,SUB_LOGOS,SUB_COVERS,SUB_TASKS];
 var SS_NAME='OSOA Desk — Database';
 var TOKEN_DAYS=30, DEVICE_DAYS=30, BACKUP_KEEP=14;
-var SCHEMA_VERSION='12';
+var SCHEMA_VERSION='13';
 
 var DEFAULT_PROGRAMS=[
   {programId:'p-osoa', name:'One State One Artist', short:'OSOA', deskName:'OSOA Desk', color:'#D4A017'},
@@ -88,7 +88,8 @@ function subFolder_(name){ return childFolder_(appFolder_(),name); }
 var SCHEMA={
   Users:['userId','fullName','username','passHash','salt','email','mobile','photoId','state','city','category','bio','instagram','isSuper','tokenHash','tokenExp','createdAt','lastLogin',
          'accountType','dob','address','bloodGroup','tshirt','skills','emName','emRelation','emMobile','aadhaarNumber','aadhaarFileId','consentAt','isDisabled','devicesJSON',
-         'artForms','techniques','languages','yearsPractice','awards','exhibitions','training','workshops','linksJSON','coverArtId','verified','verifiedBy','verifiedAt','inviteFlag','inviteReason','inviteBy'],
+         'artForms','techniques','languages','yearsPractice','awards','exhibitions','training','workshops','linksJSON','coverArtId','verified','verifiedBy','verifiedAt','inviteFlag','inviteReason','inviteBy',
+         'foodPref','allergies','accessNeeds','mediaConsent','mediaConsentAt','workshopCan','workshopTopics','workshopFee','workshopGroup','tagsJSON','feedback','feedbackBy','feedbackAt'],
   Sessions:['id','userId','tokenHash','exp','createdAt'],
   Programs:['programId','name','short','deskName','color','logoId','sort'],
   Events:['eventId','programId','name','startDate','endDate','time','venue','city','state','mapUrl','contactName','contactPhone','about','coverId','status','isPublic','regOpen','createdBy','createdAt','budgetTotal','budgetJSON','approvalLimit','selectionTeamId','selGroupsJSON','ivQuestionsJSON','materialOptionsJSON','certFileId','certLayoutJSON','certReleased'],
@@ -97,7 +98,10 @@ var SCHEMA={
   StageLog:['id','eventId','roleId','userId','fromStage','toStage','byUser','verifiedBy','note','at'],
   Tasks:['taskId','eventId','title','detail','assignedTo','due','status','createdBy','createdAt','doneAt','teamId','priority','dueTime','progress','statusNote','checklistJSON','updatedAt','updatedBy'],
   TaskUpdates:['id','taskId','eventId','userId','kind','status','progress','text','filesJSON','at'],
-  Portfolio:['id','userId','fileId','title','medium','size','year','sort','at'],
+  Portfolio:['id','userId','fileId','title','medium','size','year','sort','at','forSale','price','saleStatus'],
+  Likes:['id','portfolioId','visitor','at'],
+  Guestbook:['id','userId','name','place','message','status','at','decidedBy'],
+  Enquiries:['id','userId','portfolioId','name','phone','email','message','status','at','handledBy'],
   EventMedia:['id','eventId','userId','fileId','videoUrl','caption','addedBy','at'],
   ContactLog:['id','userId','eventId','kind','note','byUser','at'],
   CalEntries:['id','eventId','ownerId','kind','title','note','start','end','allDay','color','audienceJSON','repeat','repeatUntil','link','location','createdAt','updatedAt'],
@@ -566,7 +570,7 @@ function roleOut_(r,full,sel){
     if(sel){ o.interviewScore=num_(r.interviewScore); var rt=ratingsOf_(r.roleId); o.ratingAvg=rt.avg; o.ratingCount=rt.list.length;
       o.specialistId=r.specialistId||''; var sp=r.specialistId?user_(r.specialistId):null; o.specialistName=sp?sp.fullName:'';
       o.rankOrder=r.rankOrder===''||r.rankOrder==null?null:num_(r.rankOrder); o.screenLink=r.screenLink||''; o.photosRequested=T_(r.photosRequested);
-      o.age=ageOf_(u.dob); o.workPhotos=jp_(r.workPhotosJSON); o.verified=T_(u.verified); } }
+      o.age=ageOf_(u.dob); o.workPhotos=jp_(r.workPhotosJSON); o.verified=T_(u.verified); o.tags=jp_(u.tagsJSON); } }
   if(full){ o.mobile=u.mobile; o.email=u.email; o.note=r.note; o.decidedAt=r.decidedAt;
     if(r.role==='artist'){ o.interviewAt=r.interviewAt; if(sel) o.interviewNotes=r.interviewNotes; o.travel=jo_(r.travelJSON); o.artworkLinks=r.artworkLinks||''; o.materials=jo_(r.materialsJSON); }
     if(r.role==='artist'&&sel){
@@ -1251,7 +1255,13 @@ function materialOptions_(e){ var o=jo_(e.materialOptionsJSON); return {canvas:o
 function contactLog_(userId,ev,kind,note,me){ try{ appendRow_('ContactLog',{id:uid_('cl'),userId:userId,eventId:ev||'',kind:kind,note:String(note||'').slice(0,500),byUser:me?me.userId:'',at:now_()}); }catch(x){} }
 function linksOf_(u){ var l=jo_(u.linksJSON); if(!l.instagram&&u.instagram) l.instagram=u.instagram; var o={}; LINK_KEYS.forEach(function(k){ if(l[k]) o[k]=String(l[k]); }); return o; }
 function portfolioOf_(userId){ return readAll_('Portfolio').filter(function(x){return x.userId===userId;}).sort(function(a,b){return (num_(a.sort)-num_(b.sort))||String(a.at).localeCompare(String(b.at));})
-  .map(function(x){return {id:x.id,fileId:x.fileId,title:x.title,medium:x.medium,size:x.size,year:x.year};}); }
+  .map(function(x){return {id:x.id,fileId:x.fileId,title:x.title,medium:x.medium,size:x.size,year:x.year,forSale:x.forSale||'',saleStatus:x.saleStatus||'',price:x.price||''};}); }
+var PRIVATE_FIELDS=['foodPref','allergies','accessNeeds','mediaConsent','workshopCan','workshopTopics','workshopFee','workshopGroup'];
+var ARTIST_TAGS=['Good with kids','Live demo','Can teach','Fast worker','Media friendly','Team player','Needs support','Senior artist'];
+function likesFor_(ids,visitor){ var c={}, mine={}; readAll_('Likes').forEach(function(l){ if(ids.indexOf(l.portfolioId)<0) return; c[l.portfolioId]=(c[l.portfolioId]||0)+1; if(visitor&&l.visitor===visitor) mine[l.portfolioId]=1; }); return {count:c,mine:mine}; }
+function artistAdminIds_(userId){ var ids={}; readAll_('Roles').forEach(function(r){ if(r.userId===userId&&r.role==='artist') eventAdminIds_(r.eventId).forEach(function(u){ids[u]=1;}); });
+  readAll_('Users').forEach(function(u){ if(isSuper_(u)) ids[u.userId]=1; }); return Object.keys(ids); }
+function artistEv_(userId){ var r=readAll_('Roles').filter(function(x){return x.userId===userId&&x.role==='artist';}).sort(function(a,b){return String(b.createdAt).localeCompare(String(a.createdAt));})[0]; return r?r.eventId:''; }
 // staff who may see the internal side of an artist: super, any event admin, or the selection committee of an event the artist is in
 function canReviewArtist_(me,userId){
   if(isSuper_(me)) return true;
@@ -1278,14 +1288,51 @@ function api_publicArtist(p){
   if(!u||T_(u.isDisabled)) throw 'Artist not found.';
   var isArtist=u.accountType==='artist'||readAll_('Roles').some(function(r){return r.userId===u.userId&&r.role==='artist';});
   if(!isArtist) throw 'Artist not found.';
-  var o=profileOut_(u); o.journey=journeyOf_(u,true); return o;
+  var o=profileOut_(u); o.journey=journeyOf_(u,true);
+  var lk=likesFor_(o.portfolio.map(function(x){return x.id;}),String(p.visitor||''));
+  o.portfolio.forEach(function(x){ delete x.price; x.likes=lk.count[x.id]||0; x.liked=!!lk.mine[x.id]; });
+  o.guestbook=readAll_('Guestbook').filter(function(g){return g.userId===u.userId&&g.status==='approved';}).sort(function(a,b){return String(b.at).localeCompare(String(a.at));}).slice(0,50).map(function(g){return {name:g.name,place:g.place,message:g.message,at:g.at};});
+  return o;
+}
+function visitorOk_(v){ v=String(v||''); if(!/^[a-z0-9-]{8,60}$/i.test(v)) throw 'Please reload the page and try again.'; return v; }
+function api_likeArtwork(p){
+  var v=visitorOk_(p.visitor), x=find_('Portfolio','id',p.portfolioId); if(!x) throw 'Artwork not found.';
+  var ex=readAll_('Likes').filter(function(l){return l.portfolioId===x.id&&l.visitor===v;})[0];
+  if(p.on&&!ex) appendRow_('Likes',{id:uid_('lk'),portfolioId:x.id,visitor:v,at:now_()});
+  if(!p.on&&ex) deleteWhere_('Likes','id',ex.id);
+  return {likes:readAll_('Likes').filter(function(l){return l.portfolioId===x.id;}).length,liked:!!p.on};
+}
+function recentFrom_(sheet,v,mins){ var since=new Date(Date.now()-mins*60000).toISOString(); return readAll_(sheet).filter(function(x){return x.visitor===v&&x.at>since;}).length; }
+function api_signGuestbook(p){
+  var u=readAll_('Users').filter(function(x){return String(x.username).toLowerCase()===String(p.username||'').toLowerCase();})[0]; if(!u) throw 'Artist not found.';
+  var name=String(p.name||'').trim().slice(0,60), msg=String(p.message||'').trim().slice(0,600);
+  if(!name||!msg) throw 'Please write your name and a message.';
+  if(/https?:\/\/|www\./i.test(msg)) throw 'Links are not allowed in messages.';
+  appendRow_('Guestbook',{id:uid_('gb'),userId:u.userId,name:name,place:String(p.place||'').trim().slice(0,60),message:msg,status:'pending',at:now_()});
+  alertMany_(artistEv_(u.userId),artistAdminIds_(u.userId),'Guestbook message for '+u.fullName+' from '+name+' — waiting for approval','gb','');
+  return {ok:true};
+}
+function api_sendEnquiry(p){
+  var u=readAll_('Users').filter(function(x){return String(x.username).toLowerCase()===String(p.username||'').toLowerCase();})[0]; if(!u) throw 'Artist not found.';
+  var name=String(p.name||'').trim().slice(0,80), phone=digits_(p.phone).slice(-10), email=String(p.email||'').trim().slice(0,120), msg=String(p.message||'').trim().slice(0,1500);
+  if(!name||!msg) throw 'Please write your name and message.';
+  if(phone.length<10&&!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw 'Please give a 10-digit mobile number or an email so we can reply.';
+  var art=p.portfolioId?find_('Portfolio','id',p.portfolioId):null; if(art&&art.userId!==u.userId) art=null;
+  appendRow_('Enquiries',{id:uid_('eq'),userId:u.userId,portfolioId:art?art.id:'',name:name,phone:phone,email:email,message:msg,status:'new',at:now_()});
+  var ids=artistAdminIds_(u.userId), txt='Enquiry for '+u.fullName+(art?' — “'+(art.title||'artwork')+'”':'')+' from '+name;
+  alertMany_(artistEv_(u.userId),ids,txt,'enq','');
+  var to=ids.map(function(i){var x=user_(i);return x&&x.email;}).filter(Boolean);
+  if(to.length) mail_(to.join(','),APP_NAME+' — '+txt,txt+'\n\nPhone: '+(phone||'—')+'\nEmail: '+(email||'—')+'\n\n'+msg+'\n\nOpen the app › Artists Database › '+u.fullName+' › Full profile to mark it handled.');
+  return {ok:true};
 }
 function api_artistProfile(p){
   var me=userByToken_(p.token), u=user_(p.userId||me.userId); if(!u) throw 'Artist not found.';
   var self=u.userId===me.userId, staff=!self&&canReviewArtist_(me,u.userId);
   if(!self&&!staff) throw 'You do not have access to this profile.';
   var o=profileOut_(u); o.journey=journeyOf_(u,false); o.canEdit=canEditArtist_(me,u.userId); o.self=self;
-  o.verified=T_(u.verified);
+  o.verified=T_(u.verified); PRIVATE_FIELDS.forEach(function(k){ o[k]=u[k]||''; }); o.mediaConsentAt=u.mediaConsentAt||'';
+  o.feedback=u.feedback||''; var fb=u.feedbackBy?user_(u.feedbackBy):null; o.feedbackByName=fb?fb.fullName:''; o.feedbackAt=u.feedbackAt||'';
+  var lk=likesFor_(o.portfolio.map(function(x){return x.id;}),''); o.portfolio.forEach(function(x){ x.likes=lk.count[x.id]||0; });
   if(staff){
     o.mobile=u.mobile; o.email=u.email; o.state=u.state; o.city=u.city;
     var vb=u.verifiedBy?user_(u.verifiedBy):null; o.verifiedByName=vb?vb.fullName:''; o.verifiedAt=u.verifiedAt||'';
@@ -1298,15 +1345,42 @@ function api_artistProfile(p){
     o.contacts=readAll_('ContactLog').filter(function(c){return c.userId===u.userId;}).map(function(c){ var b=user_(c.byUser)||{}, e=c.eventId?find_('Events','eventId',c.eventId):null;
       return {id:c.id,kind:c.kind,note:c.note,by:b.fullName||'',event:e?e.name:'',at:c.at}; }).sort(function(a,b){return String(b.at).localeCompare(String(a.at));});
     o.canMedia=readAll_('Roles').some(function(r){return r.userId===u.userId&&r.role==='artist'&&(roleOf_(me,r.eventId)==='admin'||roleOf_(me,r.eventId)==='volunteer');});
-    o.staff=true;
+    o.staff=true; o.tags=jp_(u.tagsJSON); o.tagCatalog=ARTIST_TAGS;
+    o.guestbook=readAll_('Guestbook').filter(function(g){return g.userId===u.userId&&g.status!=='hidden';}).sort(function(a,b){return String(b.at).localeCompare(String(a.at));}).map(function(g){return {id:g.id,name:g.name,place:g.place,message:g.message,status:g.status,at:g.at};});
+    o.enquiries=readAll_('Enquiries').filter(function(q){return q.userId===u.userId;}).sort(function(a,b){return String(b.at).localeCompare(String(a.at));}).map(function(q){ var a=q.portfolioId?find_('Portfolio','id',q.portfolioId):null, h=q.handledBy?user_(q.handledBy):null;
+      return {id:q.id,name:q.name,phone:q.phone,email:q.email,message:q.message,status:q.status,at:q.at,artwork:a?a.title:'',handledBy:h?h.fullName:''}; });
   }
   return o;
+}
+function api_setArtistStaff(p){
+  var me=userByToken_(p.token), u=user_(p.userId); if(!u) throw 'Artist not found.';
+  if(!canReviewArtist_(me,u.userId)) throw 'Only admins and the selection committee can do this.';
+  var patch={};
+  if(p.tags){ patch.tagsJSON=JSON.stringify(p.tags.map(function(x){return String(x).trim().slice(0,30);}).filter(Boolean).slice(0,15)); }
+  if(p.feedback!==undefined){ patch.feedback=String(p.feedback||'').trim().slice(0,2000); patch.feedbackBy=patch.feedback?me.userId:''; patch.feedbackAt=patch.feedback?now_():'';
+    if(patch.feedback) notify_(artistEv_(u.userId),u.userId,'You have new feedback from the committee. Open My profile to read it.',''); }
+  updateWhere_('Users','userId',u.userId,patch); log_('',me,p.tags?'Artist tags updated':'Feedback to artist saved',u.fullName,u.userId);
+  return api_artistProfile({token:p.token,userId:u.userId});
+}
+function api_moderateGuestbook(p){
+  var me=userByToken_(p.token), g=find_('Guestbook','id',p.id); if(!g) throw 'Message not found.';
+  if(!canReviewArtist_(me,g.userId)&&artistAdminIds_(g.userId).indexOf(me.userId)<0) throw 'Only admins can approve messages.';
+  updateWhere_('Guestbook','id',g.id,{status:p.approve?'approved':'hidden',decidedBy:me.userId});
+  return api_artistProfile({token:p.token,userId:g.userId});
+}
+function api_handleEnquiry(p){
+  var me=userByToken_(p.token), q=find_('Enquiries','id',p.id); if(!q) throw 'Enquiry not found.';
+  if(!canReviewArtist_(me,q.userId)&&artistAdminIds_(q.userId).indexOf(me.userId)<0) throw 'Only admins can do this.';
+  updateWhere_('Enquiries','id',q.id,{status:p.done?'handled':'new',handledBy:p.done?me.userId:''});
+  if(p.done) contactLog_(q.userId,'','other','Enquiry from '+q.name+' handled',me);
+  return api_artistProfile({token:p.token,userId:q.userId});
 }
 function api_saveArtistProfile(p){
   var me=userByToken_(p.token), u=user_(p.userId||me.userId); if(!u) throw 'Artist not found.';
   if(!canEditArtist_(me,u.userId)) throw 'You can only edit your own profile.';
   var f=p.fields||{}, patch={};
-  PROFILE_FIELDS.forEach(function(k){ if(f[k]!==undefined) patch[k]=String(f[k]||'').trim().slice(0,3000); });
+  PROFILE_FIELDS.concat(PRIVATE_FIELDS).forEach(function(k){ if(f[k]!==undefined) patch[k]=String(f[k]||'').trim().slice(0,3000); });
+  if(f.mediaConsent!==undefined && f.mediaConsent!==u.mediaConsent) patch.mediaConsentAt=now_();
   ['bio','category','state','city'].forEach(function(k){ if(f[k]!==undefined) patch[k]=String(f[k]||'').trim().slice(0,3000); });
   if(patch.yearsPractice && !/^\d{1,2}$/.test(patch.yearsPractice)) throw 'Years of practice should be a number.';
   if(f.links){ var l={}; LINK_KEYS.forEach(function(k){ var v=String(f.links[k]||'').trim(); if(v) l[k]=v.slice(0,300); }); patch.linksJSON=JSON.stringify(l); patch.instagram=l.instagram||''; }
@@ -1319,6 +1393,7 @@ function api_saveArtistProfile(p){
 function api_savePortfolio(p){
   var me=userByToken_(p.token), uid=p.userId||me.userId; if(!canEditArtist_(me,uid)) throw 'You can only edit your own portfolio.';
   var x=p.item||{}, row={title:String(x.title||'').trim().slice(0,120),medium:String(x.medium||'').trim().slice(0,80),size:String(x.size||'').trim().slice(0,60),year:String(x.year||'').trim().slice(0,4)};
+  if(x.forSale!==undefined){ row.forSale=['','sale','adopt'].indexOf(x.forSale)>=0?x.forSale:''; row.price=row.forSale?String(x.price||'').replace(/[^\d]/g,'').slice(0,9):''; row.saleStatus=row.forSale&&['sold','adopted'].indexOf(x.saleStatus)>=0?x.saleStatus:''; }
   if(x.id){ var ex=find_('Portfolio','id',x.id); if(!ex||ex.userId!==uid) throw 'Artwork not found.'; updateWhere_('Portfolio','id',x.id,row); }
   else{ if(!x.image) throw 'Please choose a photo of the artwork.';
     if(readAll_('Portfolio').filter(function(y){return y.userId===uid;}).length>=60) throw 'Portfolio is full (60 artworks).';
@@ -1562,12 +1637,16 @@ function buildReadable_(){
     ['Aadhaar','Aadhaar numbers are kept separately in My Apps › OSOA Desk › 9. Aadhaar (private) › Aadhaar — readable list.'],['Folders','One folder per event. All Accounts lists every account in the app.']]); rdDone_(rd,['About']);
   // All accounts
   var acc=rdFile_('accounts','All Accounts',root);
-  rdTab_(acc,'Accounts',['Name','Username','Account type','Mobile','Email','State','City','Date of birth','Blood group','T-shirt','Skills','Address','Emergency contact','Emergency relation','Emergency mobile','Main art form','Other art forms','Years of practice','Instagram','Verified artist','Invite flag','Super admin','Disabled','Created','Last login','Photo'],
+  rdTab_(acc,'Accounts',['Name','Username','Account type','Mobile','Email','State','City','Date of birth','Blood group','T-shirt','Skills','Address','Emergency contact','Emergency relation','Emergency mobile','Main art form','Other art forms','Years of practice','Instagram','Verified artist','Invite flag','Tags','Food','Allergies','Access / health needs','Media consent','Workshops','Committee feedback','Super admin','Disabled','Created','Last login','Photo'],
     users.map(function(u){ return [u.fullName,u.username,u.accountType||'volunteer',u.mobile,u.email,u.state,u.city,u.dob,u.bloodGroup,u.tshirt,u.skills,u.address,u.emName,u.emRelation,u.emMobile,u.category,u.artForms,u.yearsPractice,u.instagram,
-      T_(u.verified)?'Yes':'',u.inviteFlag==='again'?'Invite again':(u.inviteFlag==='no'?"Don't invite — "+u.inviteReason:''),isSuper_(u)?'Yes':'',T_(u.isDisabled)?'Yes':'',rdTime_(u.createdAt),rdTime_(u.lastLogin),rdLink_(u.photoId)]; }));
-  rdTab_(acc,'Portfolio',['Artist','Title','Medium','Size','Year','Photo'],readAll_('Portfolio').map(function(x){return [rdName_(x.userId),x.title,x.medium,x.size,x.year,rdLink_(x.fileId)];}));
+      T_(u.verified)?'Yes':'',u.inviteFlag==='again'?'Invite again':(u.inviteFlag==='no'?"Don't invite — "+u.inviteReason:''),jp_(u.tagsJSON).join(', '),u.foodPref,u.allergies,u.accessNeeds,u.mediaConsent,
+      u.workshopCan==='yes'?['Can teach',u.workshopTopics,u.workshopFee?'₹'+u.workshopFee:'',u.workshopGroup].filter(Boolean).join(' · '):'',u.feedback,isSuper_(u)?'Yes':'',T_(u.isDisabled)?'Yes':'',rdTime_(u.createdAt),rdTime_(u.lastLogin),rdLink_(u.photoId)]; }));
+  var lkc={}; readAll_('Likes').forEach(function(l){ lkc[l.portfolioId]=(lkc[l.portfolioId]||0)+1; });
+  rdTab_(acc,'Portfolio',['Artist','Title','Medium','Size','Year','Sale / adoption','Price (₹)','Status','Likes','Photo'],readAll_('Portfolio').map(function(x){return [rdName_(x.userId),x.title,x.medium,x.size,x.year,x.forSale==='adopt'?'Adopt an Artist':(x.forSale==='sale'?'For sale':''),x.price,x.saleStatus,lkc[x.id]||0,rdLink_(x.fileId)];}));
+  rdTab_(acc,'Enquiries',['Artist','Artwork','From','Phone','Email','Message','Status','Handled by','When'],readAll_('Enquiries').map(function(q){ var a=q.portfolioId?find_('Portfolio','id',q.portfolioId):null; return [rdName_(q.userId),a?a.title:'Commission',q.name,q.phone,q.email,q.message,q.status,rdName_(q.handledBy),rdTime_(q.at)]; }));
+  rdTab_(acc,'Guestbook',['Artist','From','Place','Message','Status','When'],readAll_('Guestbook').map(function(g){return [rdName_(g.userId),g.name,g.place,g.message,g.status,rdTime_(g.at)];}));
   rdTab_(acc,'Contact log',['Artist','Type','Note','By','Event','When'],readAll_('ContactLog').map(function(c){ var e=c.eventId?find_('Events','eventId',c.eventId):null; return [rdName_(c.userId),c.kind,c.note,rdName_(c.byUser),e?e.name:'',rdTime_(c.at)]; }));
-  rdDone_(acc,['Accounts','Portfolio','Contact log']);
+  rdDone_(acc,['Accounts','Portfolio','Enquiries','Guestbook','Contact log']);
   // Aadhaar (separate, private folder)
   var aa=rdFile_('aadhaar','Aadhaar — readable list',subFolder_(SUB_AADHAAR));
   rdTab_(aa,'Aadhaar',['Name','Username','Mobile','Aadhaar number','Aadhaar photo','Consent given'],users.filter(function(u){return u.aadhaarNumber||u.aadhaarFileId;}).map(function(u){
