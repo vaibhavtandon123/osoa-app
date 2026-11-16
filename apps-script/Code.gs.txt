@@ -1,5 +1,5 @@
 /*************************************************************
- * OSOA DESK  —  Code.gs  (backend)   v2.3.0
+ * OSOA DESK  —  Code.gs  (backend)   v2.4.0
  * Google Apps Script web app. Data in a Google Sheet.
  * Drive folder: My Apps / OSOA Desk / ...
  *
@@ -9,7 +9,7 @@
  *   (first time after this update Google asks for permission once — Allow)
  *************************************************************/
 
-var APP_VERSION = '2.3.0';
+var APP_VERSION = '2.4.0';
 var APP_NAME    = 'OSOA Management Desk';
 
 /* ---- Super admin (no password stored here; set it via "Forgot password") ---- */
@@ -28,7 +28,7 @@ var SUB_DB='1. Database', SUB_ART='2. Artworks', SUB_PHOTOS='3. Profile Photos',
 var PUBLIC_IMAGE_FOLDERS=[SUB_ART,SUB_PHOTOS,SUB_LOGOS,SUB_COVERS,SUB_TASKS];
 var SS_NAME='OSOA Desk — Database';
 var TOKEN_DAYS=30, DEVICE_DAYS=30, BACKUP_KEEP=14;
-var SCHEMA_VERSION='7';
+var SCHEMA_VERSION='8';
 
 var DEFAULT_PROGRAMS=[
   {programId:'p-osoa', name:'One State One Artist', short:'OSOA', deskName:'OSOA Desk', color:'#D4A017'},
@@ -39,6 +39,9 @@ var TEAM_SUGGESTIONS=['Core / Organising','Finance','Creative','Art & Artist Rel
 var BUDGET_HEADS=['Venue','Food','Travel','Stay','Art Material','Printing','Marketing','Awards','Misc'];
 var ART_CATEGORIES=['Painting','Sketching','Sculpture','Digital Art','Folk Art','Calligraphy','Photography','Mixed Media','Other'];
 var SECTIONS=['artists','finance','tasks','people'];
+/* Team positions (below the Project Lead, who is the team's headId) */
+var POSITIONS=['apl','coordinator','senior'];
+var POSITION_NAME={lead:'Project Lead',apl:'Assistant Project Lead',coordinator:'Coordinator',senior:'Senior Volunteer',member:'Member'};
 var INCOME_KINDS=['sponsor','donation','registration','grant','adopt'];
 var PAY_MODES=['Cash','UPI','Bank','Cheque'];
 var TASK_STATUSES=['todo','progress','partial','blocked','cant','done'];
@@ -95,7 +98,7 @@ var SCHEMA={
   Badges:['id','eventId','userId','badgeKey','label','icon','tone','note','givenBy','at'],
   Notifications:['id','eventId','userId','text','taskId','isRead','at'],
   Teams:['teamId','eventId','name','headId','sort','createdBy','createdAt','requireVerify'],
-  TeamMembers:['id','teamId','eventId','userId','addedBy','addedAt'],
+  TeamMembers:['id','teamId','eventId','userId','addedBy','addedAt','position'],
   Announcements:['annId','eventId','title','body','audience','createdBy','createdAt'],
   Schedule:['itemId','eventId','day','time','title','detail'],
   Expenses:['expId','eventId','head','amount','note','paidBy','spentOn','billId','addedBy','addedAt',
@@ -419,6 +422,11 @@ function myTeamIds_(me,ev){
   readAll_('TeamMembers').forEach(function(m){ if(m.eventId===ev && m.userId===me.userId && ids.indexOf(m.teamId)<0) ids.push(m.teamId); });
   return ids;
 }
+function posTeamIds_(me,ev,pos){ return readAll_('TeamMembers').filter(function(m){return m.eventId===ev&&m.userId===me.userId&&pos.indexOf(m.position||'')>=0;}).map(function(m){return m.teamId;}); }
+// teams where `me` can add / remove members: Project Lead + APL
+function memberTeamIds_(me,ev){ return headTeamIds_(me,ev).concat(posTeamIds_(me,ev,['apl'])); }
+// teams where `me` can create and manage tasks: Project Lead + APL + Coordinator
+function taskTeamIds_(me,ev){ return headTeamIds_(me,ev).concat(posTeamIds_(me,ev,['apl','coordinator'])); }
 function inFinanceTeam_(me,ev){ var fin=teamsOf_(ev).filter(function(t){return /financ/i.test(t.name);}).map(function(t){return t.teamId;});
   return fin.length>0 && myTeamIds_(me,ev).some(function(id){return fin.indexOf(id)>=0;}); }
 function activeGrants_(me,ev){ var n=new Date(); return readAll_('SectionAccess').filter(function(g){ return g.eventId===ev && g.userId===me.userId && !g.revokedAt && (!g.expiresAt || new Date(g.expiresAt)>n); }); }
@@ -491,7 +499,7 @@ function api_eventData(p){
   var adm={}; readAll_('Users').forEach(function(u){ if(isSuper_(u)) adm[u.userId]=u; });
   roles.forEach(function(r){ if(r.role==='admin'&&r.status==='approved'){ var u=user_(r.userId); if(u) adm[u.userId]=u; } });
   out.admins=Object.keys(adm).map(function(k){var u=adm[k];var o=pubUser_(u);o.mobile=u.mobile;return o;});
-  out.myHeadTeams=headTeamIds_(me,ev);
+  out.myHeadTeams=headTeamIds_(me,ev); out.myTaskTeams=taskTeamIds_(me,ev); out.positions=POSITION_NAME;
   var cs=canSelect_(me,ev);
   if(sec.artists) out.artists=roles.filter(function(r){return r.role==='artist' && (cs||r.status==='approved');}).map(function(r){return roleOut_(r,cs);});
   if(sec.artists){ var st=selTeam_(ev);
@@ -580,7 +588,7 @@ function api_decideMember(p){
   var ev=r.eventId, role=roleOf_(me,ev), heads=headTeamIds_(me,ev);
   if(['pending','approved','rejected'].indexOf(p.status)<0) throw 'Bad status.';
   if(r.role==='volunteer'){
-    if(!(role==='admin'||heads.length)) throw 'Only admins or team leads can approve volunteers.';
+    if(!(role==='admin'||heads.length)) throw 'Only admins or Project Leads can approve volunteers.';
     if(role!=='admin'){
       if(p.status==='approved' && heads.indexOf(p.teamId||'')<0 && heads.indexOf(r.preferredTeamId)<0) throw 'Choose your own team to add this volunteer to.';
       if(p.status!=='approved' && heads.indexOf(r.preferredTeamId)<0) throw 'Only admins can reject volunteers who did not choose your team.';
@@ -688,7 +696,7 @@ function api_requestAccess(p){
 }
 function api_decideAccess(p){
   var me=userByToken_(p.token), r=find_('AccessRequests','reqId',p.reqId); if(!r) throw 'Not found.';
-  if(!canGrant_(me,r.eventId,r.userId)) throw 'Only admins or this person\'s team head can decide.';
+  if(!canGrant_(me,r.eventId,r.userId)) throw 'Only admins or this person\'s Project Lead can decide.';
   var u=user_(r.userId);
   if(p.approve){
     var exp=expiry_(p,r.eventId);
@@ -700,7 +708,7 @@ function api_decideAccess(p){
 }
 function api_grantAccess(p){
   var me=userByToken_(p.token); if(SECTIONS.indexOf(p.section)<0) throw 'Bad section.';
-  if(!canGrant_(me,p.eventId,p.userId)) throw 'Only admins or this person\'s team head can give access.';
+  if(!canGrant_(me,p.eventId,p.userId)) throw 'Only admins or this person\'s Project Lead can give access.';
   var exp=expiry_(p,p.eventId), u=user_(p.userId);
   appendRow_('SectionAccess',{grantId:uid_('g'),eventId:p.eventId,userId:p.userId,section:p.section,grantedBy:me.userId,expiresAt:exp,createdAt:now_()});
   log_(p.eventId,me,'Gave access: '+p.section,(u?u.fullName:'')+(exp?' until '+exp:' until turned off'),p.userId);
@@ -754,9 +762,13 @@ function teamsOut_(ev,role,me){
   var mem=readAll_('TeamMembers').filter(function(m){return m.eventId===ev;});
   return teamsOf_(ev).map(function(t){
     var h=t.headId?user_(t.headId):null, canManage=(role==='admin'||t.headId===me.userId);
+    var mine=mem.filter(function(m){return m.teamId===t.teamId;});
+    var amApl=mine.some(function(m){return m.userId===me.userId&&m.position==='apl';});
     var head=h?pubUser_(h):null; if(head) head.mobile=h.mobile;
-    return {teamId:t.teamId,name:t.name,headId:t.headId,head:head,canManage:canManage,
-      members:mem.filter(function(m){return m.teamId===t.teamId;}).map(function(m){ var u=user_(m.userId)||{}; var o=pubUser_(u); o.memberId=m.id; if(canManage) o.mobile=u.mobile; return o; })};
+    var order={apl:0,coordinator:1,senior:2};
+    return {teamId:t.teamId,name:t.name,headId:t.headId,head:head,canManage:canManage,canMembers:canManage||amApl,
+      members:mine.map(function(m){ var u=user_(m.userId)||{}; var o=pubUser_(u); o.memberId=m.id; o.position=m.position||''; if(canManage||amApl) o.mobile=u.mobile; return o; })
+        .sort(function(a,b){ var x=order.hasOwnProperty(a.position)?order[a.position]:9, y=order.hasOwnProperty(b.position)?order[b.position]:9; return x-y; })};
   });
 }
 function userByKey_(key){
@@ -781,7 +793,7 @@ function api_saveTeam(p){
   if(String(t.headUsername||'').trim()){ var u=userByKey_(t.headUsername); ensureVolunteer_(p.eventId,u,me); headId=u.userId; }
   if(t.teamId) updateWhere_('Teams','teamId',t.teamId,{name:name,headId:headId});
   else appendRow_('Teams',{teamId:uid_('tm'),eventId:p.eventId,name:name,headId:headId,sort:teamsOf_(p.eventId).length+1,createdBy:me.userId,createdAt:now_()});
-  log_(p.eventId,me,'Team saved',name+(headId?' — head: '+user_(headId).fullName:''),headId);
+  log_(p.eventId,me,'Team saved',name+(headId?' — Project Lead: '+user_(headId).fullName:''),headId);
   return api_eventData({token:p.token,eventId:p.eventId});
 }
 function api_deleteTeam(p){
@@ -793,27 +805,40 @@ function api_deleteTeam(p){
 }
 function api_addTeamMember(p){
   var me=userByToken_(p.token), t=find_('Teams','teamId',p.teamId); if(!t) throw 'Team not found.';
-  if(roleOf_(me,t.eventId)!=='admin' && t.headId!==me.userId) throw 'Only the team head or admin can add members.';
+  if(roleOf_(me,t.eventId)!=='admin' && memberTeamIds_(me,t.eventId).indexOf(t.teamId)<0) throw 'Only an admin, the Project Lead or an Assistant Project Lead can add members.';
   var u=userByKey_(p.username);
-  if(u.userId===t.headId) throw u.fullName+' is already the head of this team.';
+  if(u.userId===t.headId) throw u.fullName+' is already the Project Lead of this team.';
   if(readAll_('TeamMembers').some(function(m){return m.teamId===t.teamId&&m.userId===u.userId;})) throw u.fullName+' is already in this team.';
   ensureVolunteer_(t.eventId,u,me);
-  appendRow_('TeamMembers',{id:uid_('m'),teamId:t.teamId,eventId:t.eventId,userId:u.userId,addedBy:me.userId,addedAt:now_()});
+  appendRow_('TeamMembers',{id:uid_('m'),teamId:t.teamId,eventId:t.eventId,userId:u.userId,addedBy:me.userId,addedAt:now_(),position:''});
   log_(t.eventId,me,'Added to '+t.name,u.fullName,u.userId);
   return api_eventData({token:p.token,eventId:t.eventId});
 }
 function api_removeTeamMember(p){
   var me=userByToken_(p.token), m=find_('TeamMembers','id',p.memberId); if(!m) throw 'Not found.';
   var t=find_('Teams','teamId',m.teamId);
-  if(roleOf_(me,m.eventId)!=='admin' && (!t||t.headId!==me.userId)) throw 'Only the team head or admin can remove members.';
+  var adminOrLead=roleOf_(me,m.eventId)==='admin' || (t&&t.headId===me.userId);
+  if(!adminOrLead && (!t || memberTeamIds_(me,m.eventId).indexOf(t.teamId)<0)) throw 'Only an admin, the Project Lead or an Assistant Project Lead can remove members.';
+  if(!adminOrLead && m.position) throw 'Only an admin or the Project Lead can remove someone who holds a position.';
   deleteWhere_('TeamMembers','id',m.id); var u=user_(m.userId);
   log_(m.eventId,me,'Removed from '+(t?t.name:'team'),u?u.fullName:'',m.userId);
   return api_eventData({token:p.token,eventId:m.eventId});
 }
 
+function api_setTeamPosition(p){
+  var me=userByToken_(p.token), m=find_('TeamMembers','id',p.memberId); if(!m) throw 'Member not found.';
+  var t=find_('Teams','teamId',m.teamId); if(!t) throw 'Team not found.';
+  if(roleOf_(me,m.eventId)!=='admin' && t.headId!==me.userId) throw 'Only an admin or the Project Lead can change positions.';
+  var pos=String(p.position||''); if(pos && POSITIONS.indexOf(pos)<0) throw 'Unknown position.';
+  updateWhere_('TeamMembers','id',m.id,{position:pos}); var u=user_(m.userId)||{};
+  log_(m.eventId,me,pos?'Position given':'Position removed',(u.fullName||'')+' — '+(pos?POSITION_NAME[pos]:'Member')+' · '+t.name,m.userId);
+  if(pos) notify_(m.eventId,m.userId,'You are now '+POSITION_NAME[pos]+' of '+t.name+'.');
+  return api_eventData({token:p.token,eventId:m.eventId});
+}
+
 /* ---- Tasks / Announcements / Schedule ---- */
 /* ---- Tasks (statuses, priority, checklist, updates with files) ---- */
-function canTask_(me,ev,teamId){ return hasSection_(me,ev,'tasks') || (teamId && headTeamIds_(me,ev).indexOf(teamId)>=0); }
+function canTask_(me,ev,teamId){ return hasSection_(me,ev,'tasks') || (teamId && taskTeamIds_(me,ev).indexOf(teamId)>=0); }
 function isMyTask_(me,t){ if(t.assignedTo) return t.assignedTo===me.userId; if(t.teamId) return myTeamIds_(me,t.eventId).indexOf(t.teamId)>=0 || headTeamIds_(me,t.eventId).indexOf(t.teamId)>=0; return true; }
 function canUpdateTask_(me,t){ return canTask_(me,t.eventId,t.teamId) || isMyTask_(me,t); }
 var _tuCount=null;
@@ -934,7 +959,7 @@ function api_moveArtist(p){
 }
 function api_verifyStage(p){
   var me=userByToken_(p.token), r=find_('Roles','roleId',p.roleId); if(!r) throw 'Not found.';
-  if(!selHead_(me,r.eventId)) throw 'Only the selection team lead or admins can verify.';
+  if(!selHead_(me,r.eventId)) throw 'Only the selection team\'s Project Lead or admins can verify.';
   if(!r.stagePending) throw 'Nothing to verify.';
   var u=user_(r.userId)||{}, by=r.stagePendingBy, to=r.stagePending;
   if(p.approve){ applyStage_(r,to,by,me.userId,r.note); log_(r.eventId,me,'Stage verified',u.fullName+' → '+STAGE_NAME[to],r.userId); }
@@ -979,7 +1004,7 @@ function api_selectionSettings(p){
 }
 function api_setTeamVerify(p){
   var me=userByToken_(p.token), t=find_('Teams','teamId',p.teamId); if(!t) throw 'Team not found.';
-  if(roleOf_(me,t.eventId)!=='admin' && t.headId!==me.userId) throw 'Only the team lead or admins can change this.';
+  if(roleOf_(me,t.eventId)!=='admin' && t.headId!==me.userId) throw 'Only the Project Lead or admins can change this.';
   updateWhere_('Teams','teamId',t.teamId,{requireVerify:p.value?'TRUE':'FALSE'});
   log_(t.eventId,me,p.value?'Lead verification turned on':'Lead verification turned off',t.name);
   return api_eventData({token:p.token,eventId:t.eventId});
@@ -1089,8 +1114,11 @@ function badgesMap_(ev){
   if(ev){
     rolesOf_(ev).forEach(function(r){ if(r.status!=='approved') return; var u=user_(r.userId); if(r.role==='admin'&&!isSuper_(u)) add(r.userId,{label:'Event Admin',icon:'🛡️',tone:'gold',auto:true});
       if(r.role==='artist') add(r.userId,{label:'Artist',icon:'🎨',tone:'purple',auto:true}); });
-    var heads={}; teamsOf_(ev).forEach(function(t){ if(t.headId){ heads[t.headId]=1; add(t.headId,{label:'Team Lead · '+t.name,icon:'⭐',tone:'orange',auto:true}); } });
-    readAll_('TeamMembers').forEach(function(x){ if(x.eventId!==ev) return; var t=find_('Teams','teamId',x.teamId); if(t) add(x.userId,{label:t.name,icon:'👥',tone:'green',auto:true}); });
+    var heads={}; teamsOf_(ev).forEach(function(t){ if(t.headId){ heads[t.headId]=1; add(t.headId,{label:'Project Lead · '+t.name,icon:'⭐',tone:'orange',auto:true}); } });
+    var PB={apl:{icon:'🔶',tone:'orange'},coordinator:{icon:'🗂️',tone:'blue'},senior:{icon:'🎖️',tone:'green'}};
+    readAll_('TeamMembers').forEach(function(x){ if(x.eventId!==ev) return; var t=find_('Teams','teamId',x.teamId); if(!t) return;
+      if(PB[x.position]) add(x.userId,{label:POSITION_NAME[x.position]+' · '+t.name,icon:PB[x.position].icon,tone:PB[x.position].tone,auto:true});
+      else add(x.userId,{label:t.name,icon:'👥',tone:'green',auto:true}); });
     rolesOf_(ev).forEach(function(r){ if(r.role==='volunteer'&&r.status==='approved'&&!m[r.userId]) add(r.userId,{label:'Volunteer',icon:'🙋',tone:'blue',auto:true}); });
     readAll_('Badges').forEach(function(b){ if(b.eventId===ev) add(b.userId,{id:b.id,label:b.label,icon:b.icon,tone:b.tone,note:b.note,given:true}); });
   }
