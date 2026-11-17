@@ -503,10 +503,19 @@ function eventOut_(e){
 }
 /* ---- App settings (v2.8) ---- */
 function aadhaarOn_(){ return PropertiesService.getScriptProperties().getProperty('AADHAAR_ON')==='1'; }
-function appSettings_(){ return {aadhaarOn:aadhaarOn_()}; }
+var SHAKE_DEFAULT={on:true,secs:15,cards:'urgent_high_overdue',style:'shake'};
+function shake_(){ var o=jo_(PropertiesService.getScriptProperties().getProperty('SHAKE_JSON')||'{}'), d={}; Object.keys(SHAKE_DEFAULT).forEach(function(k){ d[k]=o[k]===undefined?SHAKE_DEFAULT[k]:o[k]; }); return d; }
+function retentionDays_(){ var v=Number(PropertiesService.getScriptProperties().getProperty('RETENTION_DAYS')); return v>0?v:90; }
+function appSettings_(){ return {aadhaarOn:aadhaarOn_(),shake:shake_(),retentionDays:retentionDays_()}; }
 function api_setAppSetting(p){
   var me=userByToken_(p.token); needSuper_(me);
   if(p.key==='aadhaarOn'){ PropertiesService.getScriptProperties().setProperty('AADHAAR_ON',p.value?'1':'0'); log_('',me,p.value?'Aadhaar turned ON':'Aadhaar turned OFF',''); }
+  else if(p.key==='shake'){ var v=p.value||{}, secs=Math.round(Number(v.secs));
+    if(!(secs>=5&&secs<=3600)) throw 'Seconds must be between 5 and 3600.';
+    var s={on:!!v.on,secs:secs,cards:['urgent','urgent_high','urgent_high_overdue'].indexOf(v.cards)>=0?v.cards:'urgent_high_overdue',style:v.style==='bounce'?'bounce':'shake'};
+    PropertiesService.getScriptProperties().setProperty('SHAKE_JSON',JSON.stringify(s)); log_('',me,'Task shake settings saved',(s.on?'On':'Off')+' · '+s.secs+' s · '+s.cards+' · '+s.style); }
+  else if(p.key==='retentionDays'){ var dd=Math.round(Number(p.value)); if(!(dd>=7&&dd<=3650)) throw 'Days must be between 7 and 3650.';
+    PropertiesService.getScriptProperties().setProperty('RETENTION_DAYS',String(dd)); log_('',me,'Data clean-up period set',dd+' days after the event'); }
   else throw 'Unknown setting.';
   return {settings:appSettings_()};
 }
