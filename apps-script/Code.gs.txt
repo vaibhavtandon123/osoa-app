@@ -61,18 +61,22 @@ var BADGE_CATALOG=[
 var READ_ONLY={api_alerts:1,api_readableInfo:1,api_calendar:1,api_calAcks:1,api_publicArtist:1,api_artistProfile:1,api_publicInit:1,api_eventPublic:1,api_me:1,api_eventData:1,api_image:1,api_findUsers:1,api_allUsers:1,api_profile:1,api_privateFile:1,api_taskDetail:1,api_stageHistory:1,api_artistsDb:1};
 
 function doGet(){ return json_({ok:true,app:APP_NAME,version:APP_VERSION}); }
+function req0(){ return ''; }
 function json_(o){ return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
 function doPost(e){
   var out, lock=null;
   try{
     var req=JSON.parse((e&&e.postData&&e.postData.contents)||'{}');
-    var fn=req.fn, arg=req.arg;
+    var fn=req.fn, arg=req.arg, pk=PropertiesService.getScriptProperties().getProperty('PROXY_KEY');
+    if(pk && req._k!==pk) throw 'Unknown action';
+    REQ_IP=String(req._ip||'').slice(0,64);
     if(!/^api_/.test(fn) || typeof globalThis[fn]!=='function') throw 'Unknown action';
     if(vers_()['SCHEMA_V']!==SCHEMA_VERSION){ var l0=LockService.getScriptLock(); l0.waitLock(25000); try{ db_(); }finally{ l0.releaseLock(); } }
     if(!READ_ONLY[fn]){ lock=LockService.getScriptLock(); lock.waitLock(25000); }
     out={ r: globalThis[fn](arg) };
   }catch(err){
-    out={ e: (err&&err.message)?err.message:String(err) };
+    if(typeof err==='string') out={ e: err };
+    else { try{ console.error((req0()||'')+' '+(err&&err.stack||err)); }catch(x){} out={ e: 'Something went wrong. Please try again in a moment.' }; }
   }finally{ if(lock){ try{ lock.releaseLock(); }catch(x){} } }
   return json_(out);
 }
@@ -200,9 +204,11 @@ function readAll_(name){
   }catch(e){}
   return (_cache[name]=rows);
 }
+// Security: text that starts with = + - @ is stored as plain text, never as a spreadsheet formula
+function cell_(v){ if(v===null||v===undefined) return ''; if(typeof v==='number') return v; var s=String(v); return /^[=+\-@\t\r]/.test(s)?"'"+s:s; }
 function appendRow_(name,obj){
   var sh=sheet_(name), idx=headerIdx_(sh), row=[]; for(var i=0;i<sh.getLastColumn();i++) row.push('');
-  SCHEMA[name].forEach(function(c){ if(idx[c]!=null && obj[c]!==undefined && obj[c]!==null) row[idx[c]]=String(obj[c]); });
+  SCHEMA[name].forEach(function(c){ if(idx[c]!=null && obj[c]!==undefined && obj[c]!==null) row[idx[c]]=cell_(obj[c]); });
   sh.appendRow(row); bump_(name);
 }
 function updateWhere_(name,keyCol,keyVal,patch){
@@ -212,7 +218,7 @@ function updateWhere_(name,keyCol,keyVal,patch){
     if(String(keys[r][0])===String(keyVal)){
       var rowR=sh.getRange(r+2,1,1,sh.getLastColumn()), vals=rowR.getValues()[0];
       Object.keys(patch).forEach(function(c){ if(idx[c]!=null && patch[c]!==undefined) vals[idx[c]]=String(patch[c]==null?'':patch[c]); });
-      rowR.setValues([vals]); bump_(name); return true;
+      rowR.setValues([vals.map(cell_)]); bump_(name); return true;
     }
   }
   return false;
@@ -236,6 +242,15 @@ function mail_(to,subject,body){ try{ if(to) MailApp.sendEmail(to,subject,body);
 /* ============================================================
  *  AUTH  (sessions, 2-step for admins, remembered devices)
  * ========================================================== */
+// Passwords: salted SHA-256 stretched 2000 times ("v2$"); old single-round hashes upgrade at next login
+var PW_ROUNDS=2000;
+function pwHash_(pw,salt){ var h=String(pw)+'::'+salt+'::'+pepper_(); for(var i=0;i<PW_ROUNDS;i++){ h=Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,h+'|'+salt)); } return 'v2$'+h; }
+function pwOk_(user,pw){ if(!user.passHash) return false; if(/^v2\$/.test(user.passHash)) return pwHash_(pw,user.salt)===user.passHash;
+  if(hash_(pw,user.salt)===user.passHash){ updateWhere_('Users','userId',user.userId,{passHash:pwHash_(pw,user.salt)}); return true; } return false; }
+// Rate limits (per user / per internet address) using the script cache
+var REQ_IP='';
+function hit_(key,max,secs){ var c=cacheSvc_(), k='rl-'+key, n=Number(c.get(k)||0); if(n>=max) return false; c.put(k,String(n+1),secs); return true; }
+function limit_(what,max,secs,msg){ if(!hit_(what+'-'+(REQ_IP||'noip'),max,secs)) throw msg||'Too many attempts. Please try again later.'; }
 function hash_(t,s){ return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,t+'::'+s).map(function(b){return('0'+(b&0xFF).toString(16)).slice(-2);}).join(''); }
 function pepper_(){ var p=PropertiesService.getScriptProperties(), v=p.getProperty('PEPPER'); if(!v){ v=Utilities.getUuid()+Utilities.getUuid(); p.setProperty('PEPPER',v); } return v; }
 function digits_(s){ return String(s||'').replace(/[^0-9]/g,'').slice(-10); }
@@ -255,7 +270,7 @@ function validateVolunteer_(p,isNew,hasPhoto,hasAadhaarImg){
   if(isNew && !p.consent) throw 'Please accept the Aadhaar consent.';
 }
 function api_signup(p){
-  p=p||{}; var u=String(p.username||'').trim().toLowerCase(), type=p.accountType==='artist'?'artist':'volunteer';
+  p=p||{}; limit_('signup',10,3600,'Too many sign-ups from this connection. Please try again later.'); var u=String(p.username||'').trim().toLowerCase(), type=p.accountType==='artist'?'artist':'volunteer';
   if(!p.fullName||!u||!p.password) throw 'Please fill name, username and password.';
   if(!/^[a-z0-9._]{3,30}$/.test(u)) throw 'Username: 3-30 small letters, numbers, dot or underscore.';
   if(String(p.password).length<6) throw 'Password must be at least 6 characters.';
@@ -268,7 +283,7 @@ function api_signup(p){
   if(users.some(function(x){return String(x.username).toLowerCase()===u;})) throw 'That username is already taken.';
   if(users.some(function(x){return x.mobile && digits_(x.mobile)===digits_(p.mobile);})) throw 'That mobile number is already registered. Try logging in.';
   if(users.some(function(x){return String(x.email).toLowerCase()===String(p.email).trim().toLowerCase();})) throw 'That email is already registered.';
-  var salt=Utilities.getUuid(), id=uid_('u'), row={userId:id,fullName:String(p.fullName).trim(),username:u,passHash:hash_(p.password,salt),salt:salt,
+  var salt=Utilities.getUuid(), id=uid_('u'), row={userId:id,fullName:String(p.fullName).trim(),username:u,passHash:pwHash_(p.password,salt),salt:salt,
     email:String(p.email).trim(),mobile:digits_(p.mobile),state:p.state||'',city:p.city||'',accountType:type,createdAt:now_(),
     photoId:p.photo?saveFile_(SUB_PHOTOS,p.photo,'profile-'+id+'.jpg'):''};
   if(type==='volunteer'){
@@ -296,12 +311,19 @@ function deviceOk_(user,device){
   return jp_(user.devicesJSON).some(function(d){ return d.h===h && new Date(d.exp)>new Date(); });
 }
 function api_login(p){
-  p=p||{}; var user=findLoginUser_(p.username);
+  p=p||{}; limit_('login',30,900,'Too many login attempts from this connection. Please wait 15 minutes.');
+  var user=findLoginUser_(p.username);
   if(!user) throw 'No account found with that username, email or mobile.';
   if(T_(user.isDisabled)) throw 'This account is disabled. Contact the organisers.';
   if(!user.passHash) throw 'Password not set yet. Use "Forgot password".';
-  if(hash_(p.password,user.salt)!==user.passHash) throw 'Wrong password.';
-  if(isAnyAdmin_(user) && !deviceOk_(user,p.device)){
+  var fk='fail-'+user.userId, c=cacheSvc_(), fails=Number(c.get(fk)||0);
+  if(fails>=5) throw 'Too many wrong passwords. This account is locked for 15 minutes. You can also use "Forgot password".';
+  if(!pwOk_(user,p.password)){ c.put(fk,String(fails+1),900); throw fails+1>=5?'Too many wrong passwords. This account is locked for 15 minutes.':'Wrong password. '+(5-fails-1)+' attempt'+(5-fails-1===1?'':'s')+' left.'; }
+  c.remove(fk); user=user_(user.userId);
+  return otpOrSession_(user,p.device);
+}
+function otpOrSession_(user,device){
+  if(isAnyAdmin_(user) && !deviceOk_(user,device)){
     var code=''+Math.floor(100000+Math.random()*900000), ch=Utilities.getUuid();
     cacheSvc_().put('otp-'+ch,JSON.stringify({u:user.userId,c:code,n:0}),600);
     mail_(user.email,APP_NAME+' — login code '+code,'Hello '+user.fullName+',\n\nYour '+APP_NAME+' login code is: '+code+'\nIt is valid for 10 minutes.\n\nIf this was not you, change your password.');
@@ -369,12 +391,13 @@ function api_updateProfile(p){
 }
 function api_changePassword(p){
   var me=userByToken_(p.token);
-  if(me.passHash && hash_(p.oldPassword||'',me.salt)!==me.passHash) throw 'Current password is wrong.';
+  if(me.passHash && !pwOk_(me,p.oldPassword||'')) throw 'Current password is wrong.';
   if(String(p.newPassword||'').length<6) throw 'New password must be at least 6 characters.';
-  updateWhere_('Users','userId',me.userId,{passHash:hash_(p.newPassword,me.salt)});
+  updateWhere_('Users','userId',me.userId,{passHash:pwHash_(p.newPassword,me.salt)});
   return true;
 }
 function api_forgotPassword(p){
+  limit_('forgot',5,3600,'Too many reset requests. Please try again in an hour.');
   var email=String((p&&p.email)||'').trim().toLowerCase();
   var user=readAll_('Users').filter(function(x){return x.email && String(x.email).toLowerCase()===email;})[0];
   if(!user) throw 'No account with that email.';
@@ -384,13 +407,15 @@ function api_forgotPassword(p){
   return {userId:user.userId};
 }
 function api_resetPassword(p){
-  var c=cacheSvc_(), code=c.get('reset-'+p.userId);
-  if(!code||code!==String(p.code).trim()) throw 'Wrong or expired code.';
+  var c=cacheSvc_(), code=c.get('reset-'+p.userId), nk='resetn-'+p.userId, n=Number(c.get(nk)||0);
+  if(!code) throw 'This code has expired. Please ask for a new code.';
+  if(code!==String(p.code).trim()){ n++; if(n>=5){ c.remove('reset-'+p.userId); c.remove(nk); throw 'Too many wrong codes. Please ask for a new code.'; } c.put(nk,String(n),900); throw 'Wrong code. '+(5-n)+' attempt'+(5-n===1?'':'s')+' left.'; }
+  c.remove(nk);
   if(String(p.password||'').length<6) throw 'Password must be at least 6 characters.';
   var user=user_(p.userId); if(!user) throw 'Account not found.';
-  updateWhere_('Users','userId',user.userId,{passHash:hash_(p.password,user.salt)});
-  c.remove('reset-'+p.userId);
-  return newSession_(user);  // email already verified by the code
+  updateWhere_('Users','userId',user.userId,{passHash:pwHash_(p.password,user.salt)});
+  c.remove('reset-'+p.userId); c.remove('fail-'+user.userId);
+  return otpOrSession_(user_(user.userId),p.device);  // admins still need the login code on a new device
 }
 
 /* ============================================================
@@ -1200,7 +1225,7 @@ function api_importArtists(p){
       var base=name.toLowerCase().replace(/[^a-z0-9]+/g,'.').replace(/^\.|\.$/g,'').slice(0,20)||'artist', un=base, i=1;
       var taken=readAll_('Users').map(function(k){return String(k.username).toLowerCase();});
       while(taken.indexOf(un)>=0){ un=base+(++i); }
-      var salt=Utilities.getUuid(); u={userId:uid_('u'),fullName:name,username:un,passHash:hash_(Utilities.getUuid(),salt),salt:salt,email:email,mobile:mob,state:x.state||'',city:x.city||'',
+      var salt=Utilities.getUuid(); u={userId:uid_('u'),fullName:name,username:un,passHash:pwHash_(Utilities.getUuid(),salt),salt:salt,email:email,mobile:mob,state:x.state||'',city:x.city||'',
         category:x.category||'',instagram:x.instagram||'',bio:x.bio||'',accountType:'artist',createdAt:now_()};
       appendRow_('Users',u);
     }
@@ -1296,6 +1321,7 @@ function api_publicArtist(p){
 }
 function visitorOk_(v){ v=String(v||''); if(!/^[a-z0-9-]{8,60}$/i.test(v)) throw 'Please reload the page and try again.'; return v; }
 function api_likeArtwork(p){
+  limit_('like',60,3600,'Too many likes for now. Please try again later.');
   var v=visitorOk_(p.visitor), x=find_('Portfolio','id',p.portfolioId); if(!x) throw 'Artwork not found.';
   var ex=readAll_('Likes').filter(function(l){return l.portfolioId===x.id&&l.visitor===v;})[0];
   if(p.on&&!ex) appendRow_('Likes',{id:uid_('lk'),portfolioId:x.id,visitor:v,at:now_()});
@@ -1304,6 +1330,7 @@ function api_likeArtwork(p){
 }
 function recentFrom_(sheet,v,mins){ var since=new Date(Date.now()-mins*60000).toISOString(); return readAll_(sheet).filter(function(x){return x.visitor===v&&x.at>since;}).length; }
 function api_signGuestbook(p){
+  limit_('guestbook',3,3600,'You have sent several messages. Please try again in an hour.');
   var u=readAll_('Users').filter(function(x){return String(x.username).toLowerCase()===String(p.username||'').toLowerCase();})[0]; if(!u) throw 'Artist not found.';
   var name=String(p.name||'').trim().slice(0,60), msg=String(p.message||'').trim().slice(0,600);
   if(!name||!msg) throw 'Please write your name and a message.';
@@ -1313,6 +1340,7 @@ function api_signGuestbook(p){
   return {ok:true};
 }
 function api_sendEnquiry(p){
+  limit_('enquiry',3,3600,'You have sent several enquiries. Please try again in an hour.');
   var u=readAll_('Users').filter(function(x){return String(x.username).toLowerCase()===String(p.username||'').toLowerCase();})[0]; if(!u) throw 'Artist not found.';
   var name=String(p.name||'').trim().slice(0,80), phone=digits_(p.phone).slice(-10), email=String(p.email||'').trim().slice(0,120), msg=String(p.message||'').trim().slice(0,1500);
   if(!name||!msg) throw 'Please write your name and message.';
@@ -1621,7 +1649,7 @@ function rdFile_(key,name,folder){
 function rdTab_(ss,name,header,rows){
   var sh=ss.getSheetByName(name)||ss.insertSheet(name); sh.clear();
   var data=[header].concat(rows.length?rows:[header.map(function(_,i){return i?'':'(nothing yet)';})]);
-  data=data.map(function(r){ return header.map(function(_,i){ var v=r[i]; return v==null?'':(typeof v==='number'?v:String(v)); }); });
+  data=data.map(function(r){ return header.map(function(_,i){ var v=r[i]; return v==null?'':(typeof v==='number'?v:cell_(String(v))); }); });
   sh.getRange(1,1,data.length,header.length).setValues(data);
   try{ sh.setFrozenRows(1); sh.getRange(1,1,1,header.length).setFontWeight('bold').setBackground('#f3e7c4'); sh.autoResizeColumns(1,Math.min(header.length,20)); }catch(e){}
   return sh;
