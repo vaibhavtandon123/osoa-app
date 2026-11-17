@@ -73,7 +73,8 @@ function doPost(e){
     if(!/^api_/.test(fn) || typeof globalThis[fn]!=='function') throw 'Unknown action';
     if(vers_()['SCHEMA_V']!==SCHEMA_VERSION){ var l0=LockService.getScriptLock(); l0.waitLock(25000); try{ db_(); }finally{ l0.releaseLock(); } }
     if(!READ_ONLY[fn]){ lock=LockService.getScriptLock(); lock.waitLock(25000); }
-    out={ r: globalThis[fn](arg) };
+    var t0=Date.now(); out={ r: globalThis[fn](arg) }; var ms=Date.now()-t0;
+    if(ms>3000){ try{ console.warn('SLOW '+fn+' '+ms+'ms'); var sl=JSON.parse(PropertiesService.getScriptProperties().getProperty('SPEED_LOG')||'[]'); sl.push([new Date().toISOString(),fn,ms]); PropertiesService.getScriptProperties().setProperty('SPEED_LOG',JSON.stringify(sl.slice(-50))); }catch(x){} }
   }catch(err){
     if(typeof err==='string') out={ e: err };
     else { try{ console.error((req0()||'')+' '+(err&&err.stack||err)); }catch(x){} out={ e: 'Something went wrong. Please try again in a moment.' }; }
@@ -177,7 +178,7 @@ function ensureSheets_(ss){
 var _cache={}, _vers=null, _idx={};
 function cacheSvc_(){ return CacheService.getScriptCache(); }
 function vers_(){ if(!_vers) _vers=PropertiesService.getScriptProperties().getProperties(); return _vers; }
-function bump_(name){ var v=String(Date.now())+Math.floor(Math.random()*1000); PropertiesService.getScriptProperties().setProperty('V_'+name,v); vers_()['V_'+name]=v; delete _cache[name]; _idx={}; }
+function bump_(name){ var v=String(Date.now())+Math.floor(Math.random()*1000); PropertiesService.getScriptProperties().setProperty('V_'+name,v); vers_()['V_'+name]=v; delete _cache[name]; _idx={}; _memo={}; _ratings=null; }
 function sheet_(name){ return db_().getSheetByName(name); }
 function now_(){ return new Date().toISOString(); }
 function uid_(p){ return p+'-'+Utilities.getUuid().slice(0,8); }
@@ -446,7 +447,8 @@ function api_privateFile(p){
 /* ============================================================
  *  PERMISSIONS
  * ========================================================== */
-function rolesOf_(ev){ return readAll_('Roles').filter(function(r){return r.eventId===ev;}); }
+var _memo={};
+function rolesOf_(ev){ var k='r:'+ev; if(!_memo[k]) _memo[k]=readAll_('Roles').filter(function(r){return r.eventId===ev;}); return _memo[k]; }
 function myRoleRow_(me,ev){ return readAll_('Roles').filter(function(x){return x.eventId===ev&&x.userId===me.userId;})[0]; }
 function roleOf_(me,ev){
   if(isSuper_(me)) return 'admin';
@@ -456,7 +458,7 @@ function roleOf_(me,ev){
 }
 function need_(me,ev,roles){ var r=roleOf_(me,ev); if(roles.indexOf(r)<0) throw 'You do not have access to this.'; return r; }
 function needSuper_(me){ if(!isSuper_(me)) throw 'Only super admins can do this.'; }
-function teamsOf_(ev){ return readAll_('Teams').filter(function(t){return t.eventId===ev;}).sort(function(a,b){return num_(a.sort)-num_(b.sort);}); }
+function teamsOf_(ev){ var k='t:'+ev; if(!_memo[k]) _memo[k]=readAll_('Teams').filter(function(t){return t.eventId===ev;}).sort(function(a,b){return num_(a.sort)-num_(b.sort);}); return _memo[k]; }
 function headTeamIds_(me,ev){ return teamsOf_(ev).filter(function(t){return t.headId===me.userId;}).map(function(t){return t.teamId;}); }
 function myTeamIds_(me,ev){
   var ids=headTeamIds_(me,ev);
@@ -584,7 +586,7 @@ function api_eventData(p){
     var all=readAll_('Activity').filter(function(a){return a.eventId===ev;});
     if(role!=='admin'){ var memIds={}; readAll_('TeamMembers').forEach(function(m){ if(heads.indexOf(m.teamId)>=0) memIds[m.userId]=1; });
       all=all.filter(function(a){return memIds[a.actorId]||memIds[a.subjectId];}); }
-    out.activity=all.slice(-150).reverse();
+    out.activity=all.slice(-400).reverse();
   }
   out.badges=badgesMap_(ev); out.badgeCatalog=BADGE_CATALOG;
   var nt=readAll_('Notifications').filter(function(n){return n.userId===me.userId&&n.eventId===ev;});
@@ -1745,7 +1747,8 @@ function buildReadable_(){
   return {at:now,seconds:Math.round((Date.now()-t0)/1000)};
 }
 function api_readableInfo(p){ var me=userByToken_(p.token); needSuper_(me);
-  var at=PropertiesService.getScriptProperties().getProperty('READABLE_AT'); return {lastUpdated:at?rdTime_(at):'',folderUrl:subFolder_(SUB_READABLE).getUrl(),settings:appSettings_()}; }
+  var at=PropertiesService.getScriptProperties().getProperty('READABLE_AT'), sl=[]; try{ sl=JSON.parse(PropertiesService.getScriptProperties().getProperty('SPEED_LOG')||'[]'); }catch(x){}
+  return {lastUpdated:at?rdTime_(at):'',folderUrl:subFolder_(SUB_READABLE).getUrl(),settings:appSettings_(),slow:sl.slice(-10).reverse().map(function(x){return {at:rdTime_(x[0]),fn:String(x[1]).replace(/^api_/,''),ms:x[2]};})}; }
 function api_updateReadableNow(p){ var me=userByToken_(p.token); needSuper_(me); var r=buildReadable_(); log_('',me,'Readable copy updated',r.seconds+' s');
   return {lastUpdated:r.at,folderUrl:subFolder_(SUB_READABLE).getUrl(),settings:appSettings_()}; }
 
